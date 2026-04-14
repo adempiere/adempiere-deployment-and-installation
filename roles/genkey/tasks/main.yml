@@ -1,0 +1,21 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/genkey
+- name: Ensure the user has an SSH keypair generated on the remote
+  community.crypto.openssh_keypair:
+    path: "{{ ansible_facts['user_dir'] }}/.ssh/id_rsa"
+    type: rsa
+    size: "{{ key_size }}"
+    state: present
+    comment: "admin-key-{{ ansible_facts['nodename'] }}"
+  register: ssh_key_info
+
+- name: Copy a public key to serversconf playbook
+  ansible.builtin.copy:
+    src: "{{ ansible_facts['user_dir'] }}/.ssh/id_rsa.pub"
+    dest: "{{  playbook_dir }}/roles/serversconf/files/public_keys/present/admin/{{ ansible_facts['nodename'] }}.pub"
+
+
+- name: Mostrar donde se guardó la llave para confirmar
+  debug:
+    msg: "La llave se generó en {{ ssh_key_info.filename }} con el comentario: {{ ssh_key_info.comment }}"

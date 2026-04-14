@@ -1,0 +1,5 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for roles/deploy-traefik
+cloudflare_tocken: FcJdegHDpCRG1tl_g74NsneYWIghHTvtQegS2u1a # add your token
+cloudflare_email: ppsura008@gmail.com #add your email

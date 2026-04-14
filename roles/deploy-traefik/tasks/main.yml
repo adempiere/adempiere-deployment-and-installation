@@ -1,0 +1,115 @@
+#SPDX-License-Identifier: MIT-0
+##
+## ROLE: deploy-traefik
+## PURPOSE: Deploys the Traefik reverse proxy and its socket-proxy companion on the FrontEnd
+##          server. Traefik handles HTTPS termination with automatic Let's Encrypt certificates
+##          (DNS-01 challenge via Cloudflare) and routes traffic to BackEnd ADempiere instances.
+##
+## CONTEXT:
+##   - Targets the 'FrontEnd' group only. Do NOT run against BackEnd.
+##   - Runs as 'westfalia' user with sudo (become: true). Requires westfalia credentials from vault.
+##   - Must run AFTER install-docker.yml (Docker CE must be present).
+##   - Deploys TWO containers:
+##       traefik       — the reverse proxy (ports 80, 443)
+##       socket-proxy  — a read-only Docker API proxy so Traefik never accesses the socket directly
+##
+## WHAT THIS ROLE DOES (in order):
+##   1. Creates the Docker bridge network 'gateway' (shared by traefik and socket-proxy).
+##   2. Creates /docker/traefik/ and /docker/socket-proxy/ on the server.
+##   3. Creates subdirectories: traefik/config/, traefik/certs/, traefik/logs/.
+##   4. Deploys .env from template (contains Cloudflare API credentials for ACME DNS challenge).
+##   5. Deploys docker-compose.yml for traefik (traefik-docker-compose.yml.j2).
+##   6. Deploys docker-compose.yml for socket-proxy (socket-docker-compose.yml.j2).
+##   7. Deploys 4 Traefik config files into traefik/config/:
+##        tls-opts.yml                   — TLS cipher suites and minimum version
+##        middlewares-secure-headers.yaml — HSTS and security response headers
+##        traefik.yaml                   — main Traefik static config (entrypoints, ACME, logging)
+##        app-adempiere.yaml             — routing rule: Host(`adempiere.<dns_domain>`) → BackEnd
+##   8. Starts socket-proxy via docker compose up.
+##   9. Starts traefik via docker compose up.
+##
+## KEY VARIABLES (configure in roles/deploy-traefik/defaults/main.yml or override.yml):
+##   traefik_container_name  : container/directory name for Traefik (default: "traefik")
+##   socket_container_name   : container/directory name for socket-proxy (default: "socket-proxy")
+##   traefik_network_name    : Docker network name (default: "gateway")
+##   docker_base_path        : base path for Docker app directories (default: "/docker")
+##   adempiere_host          : assembled as "{{ host }}.{{ dns_domain }}" — the routed hostname
+##   dns_domain              : your domain (set in group_vars/all/override.yml)
+##
+## ⚠ SECURITY NOTE:
+##   roles/deploy-traefik/vars/main.yml contains Cloudflare API credentials.
+##   This file must be vault-encrypted before committing to a public repository.
+##   See docs/security.md and docs/vault.md.
+##
+## SIDE EFFECTS:
+##   - A Let's Encrypt certificate is requested on first startup. Ensure DNS is live before running.
+##   - The 'gateway' Docker network is created with bridge driver; it persists after the play.
+##   - Traefik config directory is watched live — placing a new .yaml file there takes effect
+##     immediately without restarting Traefik.
+##
+---
+# tasks file for roles/deploy-traefik
+- name: Create {{ traefik_container_name }} docker networks
+  community.docker.docker_network:
+    name: "{{ traefik_network_name }}"
+    driver: bridge
+
+- name: Create directory structure
+  file:
+    path: "{{ docker_base_path }}/{{ item }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ docker_owner | default('root') }}"
+    group: "{{ docker_group | default('root') }}"
+  with_items:
+    - "{{ traefik_container_name }}"
+    - "{{ socket_container_name}}"
+
+- name: Create subdirectories for {{ traefik_container_name }}
+  file:
+    path: "{{ docker_base_path }}/{{ traefik_container_name }}/{{ item }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ docker_owner | default('root') }}"
+    group: "{{ docker_group | default('root') }}"
+  loop:
+    - config
+    - certs
+    - logs
+
+- name: Copy {{ traefik_container_name }} .env files
+  template:
+    src: .env.j2
+    dest: "{{ docker_base_path }}/{{ traefik_container_name }}/.env"
+    mode: "0600"
+
+- name: Copy docker-compose.yml for {{ traefik_container_name }} and {{ socket_container_name }}
+  template:
+    src: "{{item.src}}"
+    dest: "{{ docker_base_path }}/{{ item.container }}/{{item.dest}}"
+  with_items:
+      - { src: 'traefik-docker-compose.yml.j2', dest: 'docker-compose.yml', container: "{{ traefik_container_name }}" }
+      - { src: 'socket-docker-compose.yml.j2', dest: 'docker-compose.yml', container: "{{ socket_container_name }}" }
+
+- name: Copy configuration files to {{ traefik_container_name }}
+  template:
+    src: "{{item.src}}"
+    dest: "{{ docker_base_path }}/{{ traefik_container_name }}/config/{{item.dest}}"
+  with_items:
+      - { src: 'tls-opts.yml.j2', dest: 'tls-opts.yml' }
+      - { src: 'middlewares-secure-headers.yaml.j2', dest: 'middlewares-secure-headers.yaml' }
+      - { src: 'traefik.yaml.j2', dest: 'traefik.yaml' }
+      - { src: 'app-adempiere.yaml.j2', dest: 'app-adempiere.yaml' }
+
+#- name: Start the {{ traefik_container_name }} container with docker compose
+#  community.docker.docker_compose_v2:
+#    project_src: "{{ docker_base_path }}/{{ traefik_container_name }}"
+#    state: present
+
+- name: Start the {{ traefik_container_name }} and {{ socket_container_name }} containers with docker compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_base_path }}/{{ item.container }}"
+    state: present
+  with_items:
+      - { container: "{{ traefik_container_name }}" }
+      - { container: "{{ socket_container_name }}" }

@@ -1,0 +1,41 @@
+##
+## ORCHESTRATION PLAYBOOK: main-w-traefik.yml
+## PURPOSE: Full end-to-end setup of both servers: base hardening + BackEnd ADempiere +
+##          FrontEnd Traefik. Use this for a complete first-time deployment.
+##
+## SEQUENCE:
+##   1. genkey.yml           — generate SSH keypair on the control node
+##   2. serversprep.yml      — distribute SSH public key to both servers (root)
+##   3. so-updates.yml       — OS dist-upgrade + conditional reboot
+##   4. serversconf.yml      — server hardening, user creation, SSH config
+##   5. install-docker.yml   — Docker CE + Compose plugin (both servers)
+##   6. deploy-traefik.yml   — Traefik reverse proxy (FrontEnd only)
+##   7. deploy-adempiere.yml — ADempiere container stack + PostgreSQL (BackEnd only)
+##
+## PREREQUISITES:
+##   - group_vars/all/override.yml must exist and be filled in (copy from override_template.yml)
+##   - group_vars/all/vault.yml must be present and unlockable
+##   - inventories/hosts must have correct IPs for BackEnd and FrontEnd
+##   - DNS for {{ dns_domain }} must point to the FrontEnd IP before step 6
+##
+---
+- name: Generate the local RSA key
+  import_playbook: genkey.yml
+
+- name: Copy the RSA key to the servers
+  import_playbook: serversprep.yml
+
+- name: Update servers
+  import_playbook: so-updates.yml
+
+- name: Configure servers
+  import_playbook: serversconf.yml
+
+- name: Install Docker and Docker Compose
+  import_playbook: install-docker.yml
+
+- name: Deploy Traefik on FrontEnd
+  import_playbook: deploy-traefik.yml
+
+- name: Deploy ADempiere and PostgreSQL on BackEnd
+  import_playbook: deploy-adempiere.yml

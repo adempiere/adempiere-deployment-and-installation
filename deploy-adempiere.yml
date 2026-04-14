@@ -1,0 +1,14 @@
+- hosts: BackEnd
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Assign user for role
+      ansible.builtin.set_fact:
+        ansible_user: "westfalia"
+        # Esto hará que Ansible use las variables de tu Vault automáticamente
+        ansible_password: "{{ westfaila_ansible_password }}" 
+        ansible_become_password: "{{ westfalia_ansible_become_pass }}" # if user is a sudoer and not root use uncomment
+        ansible_port: "{{ custom_sshport }}"
+  roles:
+    - deploy-adempiere

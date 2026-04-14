@@ -1,0 +1,113 @@
+# Complete Variable Reference
+
+## Secrets & Credentials (stored in `group_vars/all.yml`)
+
+These must be set manually via `ansible-vault edit group_vars/all.yml`.
+
+| Variable | Used in | Description |
+|---|---|---|
+| `root_ansible_password` | `serversprep.yml`, `serversconf.yml`, `so-updates.yml` | Root password for initial server access (before SSH key-based auth is configured) |
+| `username` | `serversconf` role | Name of the non-root system user to create (e.g. `westfalia`) |
+| `your_password` | `serversconf` role | SHA-512 hashed password for the user (`mkpasswd --method=sha-512`) |
+| `westfaila_ansible_password` | `deploy-adempiere.yml`, `deploy-traefik.yml`, `adempiere-restoredb.yml` | Password for the `westfalia` user *(note: variable name is misspelled — the vault key must match exactly)* |
+| `westfalia_ansible_become_pass` | `deploy-adempiere.yml`, `deploy-traefik.yml`, `adempiere-restoredb.yml` | Sudo password for the `westfalia` user |
+| `postgres_password` | `deploy-adempiere` role, `adempiere-restoredb` role | PostgreSQL superuser (`postgres`) password |
+| `adempiere_password` | `adempiere-restoredb` role | Password for the `adempiere` PostgreSQL user (falls back to `postgres_password` if not set) |
+
+## Deployment Variables (also in `group_vars/all.yml`)
+
+| Variable | Used in | Description |
+|---|---|---|
+| `admin_user` | All post-hardening playbooks, `deploy-adempiere`, `adempiere-restoredb` roles | The non-root system user (e.g. `westfalia`) |
+| `frontend_ip` | `deploy-traefik` role | Public IP of the FrontEnd server |
+| `backend_ip` | `deploy-traefik` role | IP of the BackEnd server (used in Traefik routing rules) |
+| `dns_domain` | `deploy-traefik` role | Base domain for routing and TLS certificates |
+| `timezone` | `deploy-traefik` role | Timezone for the Traefik container |
+| `custom_sshport` | All post-hardening playbooks, `serversconf` role | Custom SSH port. **Must NOT also be defined in vault.yml — remove it there if present.** |
+| `install_path` | `deploy-adempiere`, `adempiere-restoredb` roles | Base directory on BackEnd for ADempiere |
+
+---
+
+## Role: `genkey` — Defaults
+
+| Variable | Default | Description |
+|---|---|---|
+| `key_size` | `4096` | RSA key size in bits |
+
+---
+
+## Role: `deploy-adempiere` — Defaults
+
+| Variable | Default | Description |
+|---|---|---|
+| `adempiere_container_filter` | `adempiere-ui-gateway` | String used to filter `docker ps` output |
+| `adempiere_container_name` | `adempiere-ui-gateway` | Exact container name for `docker inspect` |
+| `install_path` | `/opt/development` | Base directory on the BackEnd server |
+| `repo_url` | `https://github.com/Systemhaus-Westfalia/adempiere-ui-gateway.git` | Git repository URL |
+| `repo_version` | `adempiere-trunk` | Branch or tag to deploy |
+| `be_user` | `westfalia` | File owner on the BackEnd server |
+| `postgres_external_port` | `5432` | PostgreSQL port exposed to the host |
+| `status_file` | `/opt/development/script_status.txt` | Idempotency flag for `start-all.sh` |
+| `git_status_file` | `/opt/development/git_status.txt` | Idempotency flag for git clone |
+
+---
+
+## Role: `deploy-traefik` — Defaults
+
+| Variable | Default | Description |
+|---|---|---|
+| `docker_base_path` | `/docker` | Base directory for container config files on FrontEnd |
+| `traefik_container_name` | `traefik` | Traefik container name |
+| `traefik_image` | `docker.io/library/traefik:v3.6.7` | Traefik Docker image |
+| `traefik_http_port` | `80` | HTTP entry point port |
+| `traefik_https_port` | `443` | HTTPS entry point port |
+| `traefik_dashboard_enabled` | `true` | Enable/disable the Traefik dashboard |
+| `traefik_dashboard_host` | `traefik.<dns_domain>` | Domain for the dashboard |
+| `traefik_dashboard_port` | `28080` | Port the dashboard listens on |
+| `traefik_network_name` | `gateway` | Docker network name |
+| `traefik_network_external` | `true` | Whether the network is pre-created externally |
+| `traefik_log_level` | `DEBUG` | Traefik log level (`TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`) |
+| `traefik_dns_provider` | `cloudflare` | ACME DNS challenge provider |
+| `traefik_socket_uri` | `socket-proxy` | Hostname of the Docker socket proxy container |
+| `socket_container_name` | `socket-proxy` | Socket proxy container name |
+| `socket_image` | `lscr.io/linuxserver/socket-proxy:latest` | Socket proxy Docker image |
+| `dns_domain` | *(set in `group_vars/all.yml`)* | Base domain for routing |
+| `host` | `adempiere` | Subdomain prefix |
+| `adempiere_host` | `{{ host }}.{{ dns_domain }}` | Full FQDN for ADempiere routing, assembled at runtime |
+| `servers` | `["http://<backend_ip>"]` | List of BackEnd URLs for the ADempiere load balancer |
+| `timezone` | *(set in `group_vars/all.yml`)* | Timezone for the Traefik container |
+
+## Role: `deploy-traefik` — Vars *(⚠ move to vault — see [security.md](security.md))*
+
+| Variable | Description |
+|---|---|
+| `cloudflare_tocken` | Cloudflare API token *(misspelled — should be `cloudflare_token`)* |
+| `cloudflare_email` | Email for Let's Encrypt registration |
+
+---
+
+## Role: `adempiere-restoredb` — Defaults
+
+| Variable | Default | Description |
+|---|---|---|
+| `backup_name` | `Mini-PC-20260228-2345.sql.gz` | Backup filename in `roles/adempiere-restoredb/files/` |
+| `remote_gz_path` | `/tmp/<backup_name>` | Temporary path on the server during transfer |
+| `extract_destination` | `/opt/development/adempiere-ui-gateway/docker-compose/postgresql/postgres_backups` | Final destination for the SQL file |
+| `pg_host` | `127.0.0.1` | PostgreSQL host |
+| `pg_port` | `5432` | PostgreSQL port |
+| `pg_superuser` | `postgres` | PostgreSQL superuser for the restore |
+| `adempiere_db` | `adempiere` | Database name to create and restore into |
+| `adempiere_owner` | `adempiere` | Database owner user |
+
+---
+
+## Role: `deploy-vim` — Vars
+
+| Variable | Value | Description |
+|---|---|---|
+| `vim_dir` | `/home/<ansible_user>/.vim` | Vim config directory |
+| `vimrc` | `/home/<ansible_user>/.vimrc` | Vim config file path |
+
+---
+
+[← Security](security.md) | [← Back to README](../README.md)

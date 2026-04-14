@@ -1,0 +1,212 @@
+#SPDX-License-Identifier: MIT-0
+##
+## ROLE: serversconf
+## PURPOSE: Full hardening and base configuration of a freshly provisioned Linux server.
+##
+## CONTEXT:
+##   - Targets the 'contabo' group (both BackEnd and FrontEnd servers).
+##   - Runs as root (become: true). Requires root password from vault (root_ansible_password).
+##   - Must run AFTER serversprep.yml (SSH key distribution) and so-updates.yml (OS update).
+##   - After this role completes, root login is disabled. All subsequent playbooks connect
+##     as the 'westfalia' user on the custom SSH port (custom_sshport from group_vars).
+##
+## WHAT THIS ROLE DOES (in order):
+##   1. Updates the apt cache and installs ~35 utility packages.
+##   2. Ensures en_US.UTF-8 locale is present.
+##   3. Creates the admin user ({{ username }}) with a hashed password and bash shell.
+##   4. Adds the user to sudo; grants passwordless sudo via /etc/sudoers.
+##   5. Deploys .bashrc to root and the admin user from templates/bashrc.j2.
+##   6. Deploys SSH public keys from files/public_keys/present/admin/ to both users.
+##   7. Configures unattended-upgrades (02periodic + 50unattended-upgrades templates).
+##   8. Changes the SSH daemon port via a systemd socket override (override.conf.j2).
+##   9. Hardens sshd_config: disables root login, passwords, sets modern crypto algorithms.
+##  10. Handlers restart ssh.socket (Ubuntu) and the SSH service after config changes.
+##
+## KEY VARIABLES (configure in group_vars/all/override.yml or vault.yml):
+##   username             : admin user to create (e.g. "westfalia")
+##   your_password        : hashed password for the admin user (from vault)
+##   root_ansible_password: root password for initial connection (from vault)
+##   custom_sshport       : new SSH port (replaces 22)
+##
+## SIDE EFFECTS:
+##   - SSH port changes mid-play. Ansible may lose connectivity if not using the vault port.
+##   - After this role, PasswordAuthentication is 'no' — key auth only.
+##   - Root login is disabled — only the admin user can SSH in.
+##
+---
+# tasks file for roles/serversconf
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: Install basic packages
+  ansible.builtin.package:
+    name:
+      - apt-listchanges
+      - attr
+      - bash-completion
+      - bat
+      - bc
+      - bmon
+      - ca-certificates
+      - command-not-found
+      - composer
+      - curl
+      - debconf-utils
+      - dnsutils
+      - expect
+      - finger
+      - git
+      - gnupg
+      - host
+      - htop
+      - iftop
+      - iotop
+      - locate
+      - lsb-release
+      - ncdu
+      - nethogs
+      - net-tools
+      - nload
+      - nmon
+      - pbzip2
+      - pwgen
+      - rsync
+      - screenfetch
+      - tcpdump
+      - tree
+      - unattended-upgrades
+      - vim
+      - vnstat
+      - wget
+      - xclip
+      - zip
+    state: present
+
+- name: Ensure a locale exists
+  locale_gen:
+    name: "{{item}}"
+    state: present
+  with_items:
+      - en_US.UTF-8
+
+- name: "Create user"
+  user:
+    name: "{{ username }}"
+    password: "{{ your_password }}"
+    shell: /bin/bash
+
+- name: Add user to sudo group
+  user:
+    name: "{{ username }}"  # Replace with the same username
+    groups: sudo  # On Debian/Ubuntu; for CentOS/RHEL, use 'wheel'
+    append: yes
+
+- name: Allow passwordless sudo for the user (Debian/Ubuntu)
+  lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: '^{{ username }}'
+    line: '{{ username }} ALL=(ALL) NOPASSWD:ALL'
+    validate: '/usr/sbin/visudo -cf %s'
+
+
+- name: Create bashrc
+  template:
+    src: templates/bashrc.j2
+    dest: "{{ item.home }}/.bashrc"
+    owner: "{{ item.user }}"
+    group: "{{ item.user }}"
+    mode: 0677
+  with_items:
+    - { user: 'root', home: '/root' }
+    - { user: "{{ username }}", home: '/home/{{ username }}' }
+
+
+- name: Add ADMIN ssh-keys
+  authorized_key:
+    user: "{{ item[0] }}"
+    state: present
+    key: "{{ lookup('file', item[1]) }}"
+  with_nested:
+    - [ 'root', '{{ username }}' ]
+    - [ 'public_keys/present/admin/oscar.pub', 'public_keys/present/admin/ct1001.pub' ]
+
+- name: Create unattended-upgrades configuration files
+  template:
+    src: "{{item.src}}"
+    dest: "{{item.dest}}"
+    owner: root
+    group: root
+    mode: 0644
+  with_items:
+      - { src: '50unattended-upgrades.j2', dest: '/etc/apt/apt.conf.d/50unattended-upgrades' }
+      - { src: '02periodic.j2', dest: '/etc/apt/apt.conf.d/02periodic' }
+
+- name: Create systemd override directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/ssh.socket.d
+    state: directory
+    mode: '0755'
+
+- name: Override systemd socket to new port
+  ansible.builtin.template:
+    src: override.conf.j2
+    dest: /etc/systemd/system/ssh.socket.d/override.conf
+  notify: restart ssh.socket
+
+- name: SSH hardening
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+    validate: '/usr/sbin/sshd -t -f %s' # Validates config before saving!
+  with_items:
+    - { regexp: '^PasswordAuthentication', line: 'PasswordAuthentication no' }
+    - { regexp: '^PermitRootLogin', line: 'PermitRootLogin no' }
+    - { regexp: '^(#)?Port', line: 'Port {{ custom_sshport }}' }
+    - { regexp: '^(#)?MaxAuthTries', line: 'MaxAuthTries 3' }
+    - { regexp: '^(#)?HostbasedAuthentication', line: 'HostbasedAuthentication no' }
+    - { regexp: '^(#)?IgnoreRhosts', line: 'IgnoreRhosts no' }
+    - { regexp: '^(#)?PermitEmptyPasswords', line: 'PermitEmptyPasswords no' }
+    - { regexp: '^(#)?X11Forwarding', line: 'X11Forwarding no' }
+    - { regexp: '^(#)?PermitUserEnvironment', line: 'PermitUserEnvironment no' }
+    - { regexp: '^(#)?UseDNS', line: 'UseDNS no' }
+  notify: Restart SSH
+
+- name: Set secure HostKeyAlgorithms
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    insertafter: '^#RekeyLimit default none'
+    line: 'HostKeyAlgorithms ssh-ed25519,rsa-sha2-512,rsa-sha2-256'
+    state: present
+        
+- name: Set secure KexAlgorithms
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    insertafter: '^#RekeyLimit default none'
+    line: 'KexAlgorithms curve25519-sha256@libssh.org,curve25519-sha256,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512,diffie-hellman-group14-sha256,diffie-hellman-group-exchange-sha256'
+    state: present
+        
+- name: Set secure Ciphers
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    insertafter: '^#RekeyLimit default none'
+    line: 'Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr'
+    state: present
+
+- name: Set secure MACs
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    insertafter: '^#RekeyLimit default none'
+    line: 'MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com'
+    state: present
+
+# - name: Deploy MOTD from template
+#   ansible.builtin.template:
+#     src: templates/motd.j2
+#     dest: /etc/motd
+#     owner: root
+#     group: root
+#     mode: '0644'

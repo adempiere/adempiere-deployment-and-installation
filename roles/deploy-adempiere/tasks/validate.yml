@@ -1,0 +1,13 @@
+- name: Check if any containers in the stack are in a bad state (Exited/Restarting/Dead)
+  ansible.builtin.shell: |
+    set -o pipefail
+    docker ps -a --filter "name={{ adempiere_container_filter }}" \
+      --format "{{'{{'}}.Status{{'}}'}}" \
+    | grep -E "Exited \([1-9]|Restarting|Dead" -q
+  register: bad_state
+  failed_when: bad_state.rc == 0
+  changed_when: false
+
+- name: Report OK if all services look healthy
+  ansible.builtin.debug:
+    msg: "OK: All services healthy"

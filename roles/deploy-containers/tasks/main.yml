@@ -1,0 +1,41 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/deploy-containers
+#- name: Start Nginx container
+#  docker_container:
+#    name: nginx
+#    image: nginx:latest
+#    state: started
+#    restart_policy: always
+#    published_ports:
+#      - "80:80"
+
+- name: Create Traefik labels's dictionary
+  set_fact:
+      my_labels: "{{ my_labels | default({}) | combine ({ item.key : item.value }) }}"
+  with_items:
+    - { 'key': 'traefik.enable' , 'value': 'true'}
+    - { 'key': 'traefik.http.routers.{{ container_name }}-https.tls' , 'value': 'true'}
+    - { 'key': 'traefik.http.routers.{{ container_name }}-https.tls.certresolver' , 'value': 'cloudflare'}
+    - { 'key': 'traefik.http.routers.{{ container_name }}-https.rule' , 'value': 'Host(`{{ container_name }}.sura008.dpdns.org`)'}
+    - { 'key': 'traefik.http.routers.{{ container_name }}-https.entrypoints' , 'value': 'websecure'}
+    - { 'key': 'traefik.http.routers.{{ container_name }}-https.tls.domains[0].sans' , 'value': '*.sura008.dpdns.org'}
+
+- name: Start Nginx container
+  docker_container:
+    name: nginx
+    image: "{{ container_image }}"
+    state: started
+    restart_policy: always
+    published_ports:
+      - "8090:80"
+
+- name: Start Nginx container through traefik
+  docker_container:
+    name: "{{ container_name }}"
+    image: "{{ container_image }}"
+    state: started
+    restart_policy: always
+    networks:
+      - name: "{{ docker_network_name }}"
+    labels: "{{ my_labels }}"

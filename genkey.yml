@@ -1,0 +1,5 @@
+- hosts: localhost
+  connection: loca1
+  gather_facts: true
+  roles:
+    - genkey

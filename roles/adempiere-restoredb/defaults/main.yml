@@ -1,0 +1,16 @@
+#SPDX-License-Identifier: MIT-0
+---
+# defaults file for roles/adempiere-restoredb
+extract_destination: /opt/development/adempiere-ui-gateway/docker-compose/postgresql/postgres_backups
+backup_name: Mini-PC-20260228-2345.sql.gz
+remote_gz_path: "/tmp/{{ backup_name }}"
+pg_host: "127.0.0.1"
+pg_port: 5432
+pg_superuser: "postgres"
+adempiere_db: "adempiere"
+adempiere_owner: "adempiere"
+install_path: /opt/development
+repo_url: https://github.com/Systemhaus-Westfalia/adempiere-ui-gateway.git
+repo_version: adempiere-trunk
+be_user: westfalia
+postgres_external_port: 5432

@@ -1,0 +1,124 @@
+#SPDX-License-Identifier: MIT-0
+##
+## ROLE: deploy-adempiere
+## PURPOSE: Clones the ADempiere UI Gateway repository and starts the Docker Compose stack
+##          on the BackEnd server.
+##
+## CONTEXT:
+##   - Targets the 'BackEnd' group only. Do NOT run against FrontEnd.
+##   - Runs as 'westfalia' user with sudo (become: true). Requires westfalia credentials
+##     from vault (westfaila_ansible_password, westfalia_ansible_become_pass).
+##   - Must run AFTER install-docker.yml (Docker CE must be present).
+##   - The ADempiere container stack (adempiere-ui-gateway) includes the application server
+##     and a PostgreSQL database. It is accessed internally by Traefik on the FrontEnd via HTTP.
+##
+## WHAT THIS ROLE DOES (in order):
+##   1. Gathers network facts (used in override.env templating).
+##   2. Creates the installation directory ({{ install_path }}) owned by {{ be_user }}.
+##   3. Checks a status file to avoid re-cloning if already done.
+##   4. Clones the adempiere-ui-gateway repo from GitHub ({{ repo_url }}, branch {{ repo_version }}).
+##   5. Generates override.env from templates/override.env.j2 (contains DB passwords, URLs, etc.)
+##      with mode 0600 — only the owner can read it.
+##   6. Checks a second status file to avoid restarting an already-running stack.
+##   7. Includes start.yml — runs docker compose up for the ADempiere stack.
+##   8. Includes wait.yml — waits until ADempiere is responding on its port.
+##   9. Includes validate.yml — performs health checks.
+##  10. Includes status.yml — writes "runned" to the status file to prevent re-execution.
+##
+## KEY VARIABLES (configure in roles/deploy-adempiere/defaults/main.yml or override.yml):
+##   install_path     : directory where the repo is cloned (e.g. /home/westfalia/dev)
+##   be_user          : owner of files and compose operations (e.g. "westfalia")
+##   repo_url         : GitHub URL of adempiere-ui-gateway
+##   repo_version     : branch or tag to deploy (e.g. "main", "v3.9.4")
+##   git_status_file  : path to the clone status sentinel file
+##   status_file      : path to the run status sentinel file
+##
+## SIDE EFFECTS:
+##   - Pulls from GitHub on each run if the status file is absent or has unexpected content.
+##   - override.env is written with mode 0600 and contains plaintext secrets at rest on the server.
+##   - Docker Compose stack remains running after the play; it is not stopped by this role.
+##
+---
+# tasks file for roles/deploy-adempiere
+- name: Gather network facts
+  ansible.builtin.setup:
+    gather_subset:
+      - network
+
+- name: Ensure development directory exists
+  ansible.builtin.file:
+    path: "{{ install_path }}"
+    state: directory
+    owner: "{{ be_user }}"
+    group: "{{ be_user }}"
+    mode: "0755"
+  become: true
+
+- name: Check git clone status file
+  ansible.builtin.stat:
+    path: "{{ git_status_file }}"
+  register: git_status_result
+
+- name: Read git status file
+  ansible.builtin.slurp:
+    path: "{{ git_status_file }}"
+  register: git_status_content
+  when: git_status_result.stat.exists
+
+- name: Clone adempiere-ui-gateway repository
+  ansible.builtin.git:
+    repo: "{{ repo_url }}"
+    dest: "{{ install_path }}/adempiere-ui-gateway"
+    version: "{{ repo_version }}"
+    update: yes
+  become: yes
+  become_user: "{{ be_user }}"
+  register: git_clone_result
+  when: >
+    not git_status_result.stat.exists or
+    (git_status_content.content | b64decode | trim) != "cloned"
+
+- name: Write clone status file
+  ansible.builtin.copy:
+    dest: "{{ git_status_file }}"
+    content: "cloned"
+    owner: "{{ be_user }}"
+    mode: "0644"
+  become: yes
+  when: git_clone_result is changed
+
+- name: Generate override.env file
+  ansible.builtin.template:
+    src: override.env.j2
+    dest: "{{ install_path }}/adempiere-ui-gateway/docker-compose/override.env"
+    owner: "{{ be_user }}"
+    group: "{{ be_user }}"
+    mode: "0600"
+
+- name: Check start script status file
+  stat:
+    path: "{{ status_file }}"
+  register: status_result
+
+- name: Read git status file
+  ansible.builtin.slurp:
+    path: "{{ status_file }}"
+  register: status_content
+  when: status_result.stat.exists
+
+- name: Import tasks
+  ansible.builtin.include_tasks:
+    file: "{{ item }}"
+  with_items:
+    - start.yml
+    - wait.yml
+  when: >
+    not status_result.stat.exists or
+    (status_content.content | b64decode | trim) != "runned"
+
+- name: Import tasks
+  ansible.builtin.include_tasks:
+    file: "{{ item }}"
+  with_items:
+    - validate.yml
+    - status.yml

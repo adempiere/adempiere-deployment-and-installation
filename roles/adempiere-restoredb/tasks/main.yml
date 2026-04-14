@@ -1,0 +1,84 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/adempiere-restoredb
+- name: Set decompressed filename
+  set_fact:
+    decompressed_file: "{{ remote_gz_path[:-3] }}"
+
+- name: Set destinaton filename
+  set_fact:
+    detination_file: "{{ backup_name[:-3] }}"
+
+- name: Ensure PostgreSQL client is installed on host
+  ansible.builtin.apt:
+    name:
+      - postgresql-client
+      - python3-psycopg2
+    state: present
+    update_cache: yes
+  become: true
+
+- name: Check backup file exists on host
+  ansible.builtin.stat:
+    path: "{{ extract_destination }}/{{ detination_file }}"
+  register: backup_stat
+
+- name: Copy backup package
+  copy:
+    src: "files/{{ backup_name }}"
+    dest: "{{ remote_gz_path }}"
+    owner: westfalia
+    group: westfalia
+    mode: '0644'
+  when: not backup_stat.stat.exists
+
+- name: Decompress file
+  command: gzip -d "{{ remote_gz_path }}"
+  when: not backup_stat.stat.exists
+
+- name: Move decompressed file to final destination
+  command: "mv {{ decompressed_file }} {{ extract_destination }}/{{ detination_file }}"
+  args:
+    creates: "{{ extract_destination }}/{{ detination_file }}"
+  when: not backup_stat.stat.exists
+
+- name: Check backup file exists on host again
+  ansible.builtin.stat:
+    path: "{{ extract_destination }}/{{ detination_file }}"
+  register: backup_stat_after
+
+- name: Fail if backup file is missing
+  ansible.builtin.fail:
+    msg: "Backup file not found: {{ extract_destination }}/{{ detination_file }}"
+  when: not backup_stat_after.stat.exists
+
+- name: Create database adempiere
+  community.postgresql.postgresql_db:
+    name: "{{ adempiere_db }}"
+    owner: "{{ adempiere_owner }}"
+    login_host: "{{ pg_host }}"
+    login_port: "{{ pg_port }}"
+    login_user: "{{ pg_superuser }}"
+    login_password: "{{ postgres_password }}"
+    state: present
+
+- name: Ensure adempiere database user exists with correct password
+  community.postgresql.postgresql_user:
+    name: "{{ adempiere_owner }}"
+    password: "{{ adempiere_password | default(postgres_password) }}"
+    role_attr_flags: "CREATEDB,NOSUPERUSER"
+    login_host: "{{ pg_host }}"
+    login_port: "{{ pg_port }}"
+    login_user: "{{ pg_superuser }}"
+    login_password: "{{ postgres_password }}"
+    state: present
+
+- name: Restore SQL dump into adempiere database
+  community.postgresql.postgresql_db:
+    name: "{{ adempiere_db }}"
+    state: restore
+    target: "{{ extract_destination }}/{{ detination_file }}"
+    login_host: "{{ pg_host }}"
+    login_port: "{{ pg_port }}"
+    login_user: "{{ pg_superuser }}" # <--- PRO TIP: Use superuser for the restore
+    login_password: "{{ postgres_password }}"

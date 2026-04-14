@@ -1,0 +1,28 @@
+#SPDX-License-Identifier: MIT-0
+---
+# defaults file for roles/deploy-traefik
+docker_base_path: /docker
+socket_container_name: socket-proxy
+dns_domain: systemhauswestfalia.dpdns.org
+socket_image: lscr.io/linuxserver/socket-proxy:latest
+host: adempiere
+router_name: "{{ host }}-rtr"
+service_name: "{{ host }}-svc"
+servers_transport: "{{ host }}"
+adempiere_host: "{{ host }}.{{ dns_domain }}"
+traefik_container_name: traefik
+traefik_image: docker.io/library/traefik:v3.6.7
+traefik_http_port: 80
+traefik_https_port: 443
+traefik_dashboard_enabled: true #true/false
+traefik_dashboard_host: "traefik.{{ dns_domain }}" # add your dns
+traefik_dashboard_port: 28080
+traefik_network_name: gateway
+traefik_network_external: true
+traefik_log_level: DEBUG
+traefik_dns_provider: cloudflare
+traefik_socket_uri: "{{ socket_container_name }}" # socket-proxy is the name of a container localy, if it connects remotely put the ip
+middlewares: []
+timezone: America/El_Salvador # Edit your timezone
+servers:
+  - "http://217.216.65.47" # Change to your ip, it is better to have an internal network

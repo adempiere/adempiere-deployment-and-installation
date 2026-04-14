@@ -1,0 +1,18 @@
+# Vault — real secrets file, never commit
+group_vars/all.yml
+
+# Ansible runtime files
+*.retry
+.ansible/
+
+# Python
+__pycache__/
+*.pyc
+
+# Editor temp files
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store

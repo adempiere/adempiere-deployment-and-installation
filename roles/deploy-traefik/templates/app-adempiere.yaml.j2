@@ -1,0 +1,28 @@
+http:
+  routers:
+    {{ router_name }}:
+      rule: "Host(`{{ adempiere_host }}`)"
+      entryPoints:
+        - websecure
+      middlewares:
+{% for mw in middlewares %}
+        - {{ mw }}
+{% endfor %}
+      service: {{ service_name }}
+      tls:
+        certResolver: {{ traefik_dns_provider }}
+        options: tls-opts@file
+
+  services:
+    {{ service_name }}:
+      loadBalancer:
+        passHostHeader: {{ pass_host_header | default(true) }}
+        serversTransport: "{{ host }}"
+        servers:
+{% for server in servers %}
+          - url: "{{ server }}"
+{% endfor %}
+
+  serversTransports:
+    {{ servers_transport }}:
+      insecureSkipVerify: {{ insecure_skip_verify | default(true) }}

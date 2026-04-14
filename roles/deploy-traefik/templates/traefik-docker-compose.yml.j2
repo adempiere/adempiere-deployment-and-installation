@@ -1,0 +1,58 @@
+---
+# Traefik Docker Compose Configuration
+# SPDX-License-Identifier: MIT-0
+services:
+  traefik:
+    image: "{{ traefik_image | default('docker.io/library/traefik:v3.5.3') }}"
+    container_name: "{{ traefik_container_name | default('traefik') }}"
+    ports:
+      - "{{ traefik_http_port | default('80') }}:80"
+      - "{{ traefik_https_port | default('443') }}:443"
+{% if traefik_dashboard_enabled | default(false) %}
+      # Dashboard (DISABLE IN PRODUCTION)
+      - "{{ traefik_dashboard_port | default('8080') }}:8080"
+{% endif %}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+#      - /run/docker.sock:/run/docker.sock:ro
+      - ./config/:/etc/traefik/:ro
+      - ./certs/:/var/traefik/certs/:rw
+      - ./logs/:/var/log/traefik/:rw
+    environment:
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}  # <-- Change this to your Cloudflare API Token
+#      - TRAEFIK_LOG_LEVEL={{ traefik_log_level | default('INFO') }}
+#      - TRAEFIK_ACCESSLOG=true
+    networks:
+      - "{{ traefik_network_name | default('frontend') }}"
+    restart: "{{ traefik_restart_policy | default('unless-stopped') }}"
+    security_opt:
+      - no-new-privileges:true
+{% if traefik_cpu_limit is defined or traefik_memory_limit is defined %}
+    deploy:
+      resources:
+        limits:
+{% if traefik_cpu_limit is defined %}
+          cpus: '{{ traefik_cpu_limit }}'
+{% endif %}
+{% if traefik_memory_limit is defined %}
+          memory: {{ traefik_memory_limit }}
+{% endif %}
+{% endif %}
+#    labels:
+#{% if traefik_dashboard_enabled | default(false) %}
+#      - traefik.enable=true
+#      - traefik.http.routers.dashboard.rule=Host(`{{ traefik_dashboard_host }}`)
+#      - traefik.http.routers.dashboard.entrypoints=https
+#      - traefik.http.routers.dashboard.middlewares=authelia@docker
+#      - traefik.http.routers.dashboard.service=api@internal
+#{% else %}
+#      - traefik.enable=false
+#{% endif %}
+#      - "traefik.http.routers.traefik-rtr.middlewares={{ traefik_middlewares | default('chain-no-auth@file') }}"
+
+networks:
+  {{ traefik_network_name | default('frontend') }}:
+    external: {{ traefik_network_external | default(true) | lower }}
+{% if not (traefik_network_external | default(true)) %}
+    driver: bridge
+{% endif %}

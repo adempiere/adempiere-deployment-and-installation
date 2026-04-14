@@ -1,0 +1,82 @@
+---
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+# --> (Optional) Change log level and format here ...
+#     - level: [TRACE, DEBUG, INFO, WARN, ERROR, FATAL]
+# log:
+#  level: ERROR
+# <--
+
+log:
+  level: {{ traefik_log_level }}
+  filePath: "/var/log/traefik/traefik.log"
+accessLog:
+  filePath: "/var/log/traefik/access.log"
+
+# --> (Optional) Enable accesslog here ...
+# accesslog: {}
+# <--
+
+# --> (Optional) Enable API and Dashboard here, don't do in production
+# api:
+#   dashboard: true
+#   insecure: true
+# <--
+
+api:
+  dashboard: {{ traefik_dashboard_enabled }}
+  insecure: true
+
+# -- Change EntryPoints here...
+entryPoints:
+  nonsecure:
+    address: :{{ traefik_http_port }}
+    # --> (Optional) Redirect all HTTP to HTTPS
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+    # <--
+  websecure:
+    address: :{{ traefik_https_port }}
+    http:
+      #middlewares: chain-authelia@file #crowdsec-bouncer@file
+
+# -- Configure your CertificateResolver here...
+certificatesResolvers:
+  cloudflare:
+    acme:
+      email: {{ cloudflare_email }}  # <-- Change this to your email
+      storage: /var/traefik/certs/cloudflare-acme.json
+      caServer: "https://acme-v02.api.letsencrypt.org/directory"
+      dnsChallenge:
+        provider: {{ traefik_dns_provider }}  # <-- (Optional) Change this to your DNS provider
+        resolvers:
+          - "1.1.1.1:53"
+          - "8.8.8.8:53"
+
+# --> (Optional) Disable TLS Cert verification check
+# serversTransport:
+#   insecureSkipVerify: true
+# <--
+
+# --------------------------------------------------
+# Providers
+# --------------------------------------------------
+
+providers:
+  docker:
+    endpoint: "tcp://{{ traefik_socket_uri }}:2375" # secure way to connect to Docker Socket
+#    exposedByDefault: false # <-- (Optional) Change this to true if you want to expose all services
+    # Specify discovery network - This ensures correct name resolving and possible issues with containers, that are in multiple networks.
+    # E.g. Database container in a separate network and a container in the frontend and database network.
+    network: {{ traefik_network_name }}
+
+ # -------- File provider (middlewares, TLS opts, etc.)
+  file:
+    directory: /etc/traefik/
+    watch: true
+

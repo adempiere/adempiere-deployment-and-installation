@@ -1,0 +1,13 @@
+#SPDX-License-Identifier: MIT-0
+---
+# defaults file for roles/deploy-adempiere
+
+adempiere_container_filter: adempiere-ui-gateway
+adempiere_container_name: adempiere-ui-gateway
+install_path: /opt/development
+repo_url: https://github.com/Systemhaus-Westfalia/adempiere-ui-gateway.git
+repo_version: adempiere-trunk
+be_user: westfalia
+postgres_external_port: 5432
+status_file: /opt/development/script_status.txt
+git_status_file: /opt/development/git_status.txt

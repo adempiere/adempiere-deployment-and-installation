@@ -1,0 +1,18 @@
+---
+- name: Generate the local rsa key
+  import_playbook: genkey.yml
+
+- name: Copy the rsa key to the server(s)
+  import_playbook: serversprep.yml
+
+- name: Update servers
+  import_playbook: so-updates.yml
+
+- name: Configure servers
+  import_playbook: serversconf.yml
+
+- name: Install and configure vim
+  import_playbook: deploy-vim.yml
+
+- name: Install Docker and Docker Compose
+  import_playbook: install-docker.yml

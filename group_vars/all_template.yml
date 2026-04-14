@@ -1,0 +1,19 @@
+# Template for group_vars/all.yml
+#
+# HOW TO USE:
+#   1. Copy this file:  cp group_vars/all_template.yml group_vars/all.yml
+#   2. Fill in all values below (replace every placeholder)
+#   3. Encrypt it:      ansible-vault encrypt group_vars/all.yml
+#
+# group_vars/all.yml is gitignored — never commit it with real values.
+
+# Post-hardening login credentials for the admin user (used after serversconf.yml)
+# Note: variable name 'westfaila_ansible_password' has a typo — keep it as-is (see known-issues.md)
+westfaila_ansible_password: 'your-admin-user-password'
+westfalia_ansible_become_pass: "your-admin-sudo-password"
+
+# Root password for initial server access (used by serversprep.yml and serversconf.yml)
+root_ansible_password: 'your-root-password'
+
+# Custom SSH port (set by serversconf.yml — must match what is already on the servers)
+custom_sshport: 10099

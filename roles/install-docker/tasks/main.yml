@@ -1,0 +1,97 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/install-docker
+- name: Validate supported OS (Debian/Ubuntu)
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] == 'Debian'
+      - ansible_facts['distribution'] in ['Debian', 'Ubuntu']
+    fail_msg: "This role supports only Debian/Ubuntu. Detected: {{ ansible_facts['distribution'] }}"
+
+- name: Set Docker repo base URL and GPG URL depending on distro
+  ansible.builtin.set_fact:
+    docker_repo_base: "https://download.docker.com/linux/{{ 'ubuntu' if ansible_facts['distribution'] == 'Ubuntu' else 'debian' }}"
+    docker_gpg_url: "https://download.docker.com/linux/{{ 'ubuntu' if ansible_facts['distribution'] == 'Ubuntu' else 'debian' }}/gpg"
+    docker_arch: >-
+      {{
+        'amd64' if ansible_facts['architecture'] == 'x86_64'
+        else 'arm64' if ansible_facts['architecture'] in ['aarch64', 'arm64']
+        else ansible_facts['architecture']
+      }}
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: Ensure dependencies are installed
+  ansible.builtin.package:
+    name:
+        - bc
+        - curl
+        - expect
+        - git
+        - ca-certificates
+        - python3-debian
+    state: present
+
+- name: Create Docker GPG key directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Download Docker's official GPG key
+  ansible.builtin.get_url:
+    url: "{{ docker_gpg_url }}"
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+
+- name: Add Docker repository to Apt sources
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: [deb]
+    uris: "{{ docker_repo_base }}"
+    # Corregimos los facts aquí
+    suites: ["{{ ansible_facts['distribution_release'] }}"]
+    components: [stable]
+    signed_by: /etc/apt/keyrings/docker.asc
+    # Docker espera 'amd64', Ansible dice 'x86_64'. Este filtro lo corrige:
+    architectures: "{{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else ansible_facts['architecture'] }}"
+    state: present
+
+- name: Update apt cache after adding Docker repository
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: Install Docker and Docker Compose
+  ansible.builtin.package:
+    name:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+        - docker-buildx-plugin
+        - docker-compose-plugin
+    state: present
+
+- name: Ensure Docker service is enabled and started
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Create docke directory if it does not exist
+  ansible.builtin.file:
+    path: /docker
+    state: directory
+    mode: '0755'
+
+- name: Ensure docker group exists
+  ansible.builtin.group:
+    name: docker
+    state: present
+
+- name: Add ansible user to docker group
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true

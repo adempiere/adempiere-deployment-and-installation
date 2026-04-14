@@ -1,0 +1,20 @@
+- name: Wait until container exists
+  ansible.builtin.command: >
+    docker ps -a --filter "name={{ adempiere_container_filter }}"
+    --format "{{'{{'}}.Names{{'}}'}}"
+  register: c_names
+  retries: 30
+  delay: 10
+  until: c_names.stdout is search(adempiere_container_filter)
+  changed_when: false
+
+- name: Wait until container is running (or healthy if available)
+  ansible.builtin.command: >
+    docker inspect -f "{{'{{'}}.State.Status{{'}}'}}"
+    {{ adempiere_container_name }}
+  register: c_state
+  retries: 30
+  delay: 10
+  until: c_state.stdout in ['running']
+  changed_when: false
+  ignore_errors: true

@@ -1,0 +1,203 @@
+# Running the System
+
+## Playbook Reference
+
+| Playbook | Target | Description |
+|---|---|---|
+| `genkey.yml` | localhost | Generate RSA keypair |
+| `serversprep.yml` | contabo | Distribute SSH key |
+| `so-updates.yml` | contabo | OS update + reboot |
+| `serversconf.yml` | contabo | Server hardening |
+| `install-docker.yml` | contabo | Install Docker CE |
+| `deploy-vim.yml` | contabo | Vim + plugins |
+| `deploy-adempiere.yml` | BackEnd | ADempiere container stack |
+| `deploy-traefik.yml` | FrontEnd | Traefik reverse proxy |
+| `adempiere-restoredb.yml` | BackEnd | PostgreSQL backup restore |
+| `main.yml` | various | Orchestrates: genkey → serversprep → so-updates → serversconf → deploy-vim → install-docker |
+| `main-w-traefik.yml` | various | Orchestrates full setup: genkey → serversprep → so-updates → serversconf → install-docker → deploy-traefik → deploy-adempiere |
+
+---
+
+## Running a Single Playbook
+
+```bash
+ansible-playbook <playbook-name>.yml
+```
+
+---
+
+## Useful Flags
+
+### Dry run (check mode)
+
+Shows what Ansible *would* do without making any changes. Note: `command` and `shell` tasks are skipped in check mode.
+
+```bash
+ansible-playbook serversconf.yml --check
+ansible-playbook serversconf.yml --check --diff   # also shows file diffs
+```
+
+### Limit to a specific host
+
+```bash
+ansible-playbook so-updates.yml --limit <backend_ip>
+ansible-playbook deploy-adempiere.yml --limit ansible-test
+```
+
+### Start from a specific task
+
+```bash
+ansible-playbook serversconf.yml --start-at-task "SSH hardening"
+```
+
+### Verbosity
+
+```bash
+ansible-playbook deploy-adempiere.yml -v      # basic
+ansible-playbook deploy-adempiere.yml -vv     # more detail
+ansible-playbook deploy-adempiere.yml -vvv    # connection debugging
+ansible-playbook deploy-adempiere.yml -vvvv   # full network traffic
+```
+
+### Override a variable at the command line
+
+```bash
+ansible-playbook deploy-adempiere.yml -e "repo_version=main"
+ansible-playbook deploy-traefik.yml -e "traefik_log_level=INFO"
+```
+
+---
+
+## Checking Connectivity
+
+```bash
+# Ping all hosts
+ansible all -m ping
+
+# Ping only BackEnd (after serversconf — westfalia user, custom port)
+ansible BackEnd -m ping \
+  -e "ansible_user=westfalia ansible_port=<custom_sshport>"
+
+# Gather facts from a host
+ansible <backend_ip> -m setup
+```
+
+---
+
+## Syntax Check (no execution)
+
+```bash
+ansible-playbook main.yml --syntax-check
+ansible-playbook deploy-traefik.yml --syntax-check
+```
+
+---
+
+## List Tasks Without Running
+
+```bash
+ansible-playbook serversconf.yml --list-tasks
+ansible-playbook deploy-adempiere.yml --list-tasks
+```
+
+---
+
+## Common Scenarios
+
+### Scenario 1 — Full first-time setup (both servers)
+
+Run this sequence once when provisioning both servers from scratch:
+
+```bash
+# 1. Generate SSH keypair on the control node
+ansible-playbook genkey.yml
+
+# 2. Distribute the public key to both servers (uses root password from vault)
+ansible-playbook serversprep.yml
+
+# 3. Run the full base setup: OS updates, hardening, vim, Docker
+ansible-playbook main.yml
+
+# 4. Deploy ADempiere on BackEnd
+ansible-playbook deploy-adempiere.yml
+
+# 5. Deploy Traefik on FrontEnd
+ansible-playbook deploy-traefik.yml
+```
+
+Or use the orchestration playbooks:
+
+```bash
+ansible-playbook main-backend.yml   # base setup + BackEnd app
+ansible-playbook main-frontend.yml  # base setup + FrontEnd proxy
+```
+
+---
+
+### Scenario 2 — BackEnd only (no FrontEnd / no Traefik)
+
+Use this when you want ADempiere running without a reverse proxy, e.g. for internal use or testing.
+
+```bash
+# Base setup (if not already done)
+ansible-playbook main.yml
+
+# Deploy ADempiere on BackEnd
+ansible-playbook deploy-adempiere.yml
+```
+
+ADempiere will be reachable directly at the BackEnd IP on its application port.  
+Make sure the hosting provider's firewall allows that port from your IP.
+
+---
+
+### Scenario 3 — FrontEnd only (add Traefik to an existing BackEnd)
+
+Use this when the BackEnd is already running and you only need to add or re-configure the reverse proxy.
+
+```bash
+ansible-playbook deploy-traefik.yml
+```
+
+---
+
+### Scenario 4 — Re-deploy ADempiere after a code update
+
+```bash
+# Pull new repo version and restart containers
+ansible-playbook deploy-adempiere.yml -e "repo_version=main"
+```
+
+---
+
+### Scenario 5 — Restore PostgreSQL from backup
+
+Place the `.sql.gz` backup file in `roles/adempiere-restoredb/files/`, then:
+
+```bash
+ansible-playbook adempiere-restoredb.yml
+```
+
+---
+
+### Scenario 6 — Apply OS security updates
+
+```bash
+ansible-playbook so-updates.yml
+```
+
+Servers reboot automatically if the kernel was updated.
+
+---
+
+### Scenario 7 — Test against a local VM (without touching production)
+
+```bash
+# Limit to the ansible-test group (see inventories/hosts)
+ansible-playbook serversconf.yml --limit ansible-test
+ansible-playbook deploy-adempiere.yml --limit ansible-test
+```
+
+---
+
+[← Installation](installation.md) | [Next: Operations →](operations.md)

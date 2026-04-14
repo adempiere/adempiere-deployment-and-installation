@@ -1,0 +1,9 @@
+- name: Show running containers (top 20)
+  ansible.builtin.command: >
+    docker ps --format "table {{'{{'}}.Names{{'}}'}}\t{{'{{'}}.Status{{'}}'}}"
+  register: docker_ps_table
+  changed_when: false
+
+- name: Print docker ps table (first 20 lines)
+  ansible.builtin.debug:
+    msg: "{{ docker_ps_table.stdout_lines[:20] }}"
