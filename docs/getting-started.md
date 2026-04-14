@@ -62,21 +62,21 @@ ansible-playbook deploy-adempiere.yml   # Deploy or update ADempiere (BackEnd)
 
 **Infrastructure phase (Phase 1):**
 
-| Step | Duration | Notes |
-|---|---|---|
-| `genkey.yml` | seconds | Skipped if `~/.ssh/id_rsa` already exists |
-| `serversprep.yml` | seconds | Needs root password in vault and port 22 open |
-| `so-updates.yml` | 5–15 min | May reboot; waits automatically for server to return |
-| `serversconf.yml` | 2–5 min | After this, root login is disabled and SSH port changes |
-| `install-docker.yml` | 2–5 min | Downloads from official Docker repository |
-| `deploy-traefik.yml` | 1–2 min | TLS certificate is issued on first HTTPS request; **run once** |
+| Step | Target | Duration | Notes |
+|---|---|---|---|
+| `genkey.yml` | localhost | seconds | Skipped if `~/.ssh/id_rsa` already exists |
+| `serversprep.yml` | both servers | seconds | Needs root password in vault and port 22 open |
+| `so-updates.yml` | both servers | 5–15 min | May reboot; waits automatically for server to return |
+| `serversconf.yml` | both servers | 2–5 min | After this, root login is disabled and SSH port changes |
+| `install-docker.yml` | both servers | 2–5 min | Docker is needed on both: BackEnd for ADempiere/PostgreSQL containers, FrontEnd for Traefik/socket-proxy |
+| `deploy-traefik.yml` | FrontEnd only | 1–2 min | TLS certificate is issued on first HTTPS request; **run once** |
 
 **Application phase (Phase 2):**
 
-| Step | Duration | Notes |
-|---|---|---|
-| `deploy-adempiere.yml` | 5–10 min | Includes waiting for containers to become healthy |
-| `adempiere-restoredb.yml` | varies | Only when restoring from a backup |
+| Step | Target | Duration | Notes |
+|---|---|---|---|
+| `deploy-adempiere.yml` | BackEnd only | 5–10 min | Starts ADempiere + PostgreSQL containers; includes waiting for containers to become healthy |
+| `adempiere-restoredb.yml` | BackEnd only | varies | Only when restoring from a backup |
 
 ---
 
