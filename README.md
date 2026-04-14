@@ -34,7 +34,7 @@ By the end of this automation, the following will be in place:
 - Both servers have **Docker CE** installed.
 - The **BackEnd** server runs the ADempiere ERP container stack (application + PostgreSQL database), cloned from the Systemhaus Westfalia GitHub repository.
 - The **FrontEnd** server runs **Traefik**, a reverse proxy that receives HTTPS traffic from the internet, terminates TLS using a certificate automatically issued by Let's Encrypt via the Cloudflare DNS API, and forwards requests to the BackEnd.
-- The system is reachable at the domain configured in `group_vars/all/override.yml`.
+- The system is reachable at the domain configured in `group_vars/all.yml`.
 
 Sensitive values (passwords, API tokens) are stored encrypted using **Ansible Vault**. Deployment-specific but non-secret values (IPs, domain, SSH port) are kept in a local file that is never committed to the repository. See [docs/vault.md](docs/vault.md).
 
@@ -54,8 +54,7 @@ Control Node (your local machine)
 ├── inventories/hosts            ← list of target servers, organised into named groups
 │
 ├── group_vars/                  ← variables shared across a group of hosts
-│   └── all.yml                  ← vault-encrypted secrets (passwords, API keys)
-│       override.yml             ← non-secret deployment values (IPs, domain, port) — gitignored
+│   └── all.yml                  ← vault-encrypted secrets + deployment values (IPs, domain, port)
 │
 ├── Playbook  (*.yml)            ← entry point: "run these roles on these hosts"
 │   ├── hosts: <group>           ← which inventory group to target
