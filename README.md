@@ -36,7 +36,7 @@ By the end of this automation, the following will be in place:
 - The **FrontEnd** server runs **Traefik**, a reverse proxy that receives HTTPS traffic from the internet, terminates TLS using a certificate automatically issued by Let's Encrypt via the Cloudflare DNS API, and forwards requests to the BackEnd.
 - The system is reachable at the domain configured in `group_vars/all.yml`.
 
-Sensitive values (passwords, API tokens) are stored encrypted using **Ansible Vault**. Deployment-specific but non-secret values (IPs, domain, SSH port) are kept in a local file that is never committed to the repository. See [docs/vault.md](docs/vault.md).
+Sensitive values (passwords, API tokens) are stored encrypted using **Ansible Vault**. All variables are kept in `group_vars/all.yml` (gitignored — never committed). Copy it from `group_vars/all_template.yml` and encrypt it with the default vault password `MyVaultPassword` — **change this password before deploying to production**. See [docs/vault.md](docs/vault.md).
 
 You run all commands from your local machine. Ansible connects to the servers over SSH and handles everything remotely.
 
