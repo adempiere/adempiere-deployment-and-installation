@@ -12,7 +12,8 @@ deployment_and_installation/
 │   └── hosts                      # Static inventory: server IPs and groups
 │
 ├── group_vars/
-│   └── all.yml                    # AES-256 vault-encrypted secrets (passwords, API keys)
+│   ├── all.yml                    # AES-256 vault-encrypted secrets + deployment values — gitignored
+│   └── all_template.yml           # Template for all.yml — copy this, fill in values, then encrypt
 │
 ├── Orchestration playbooks
 ├── main.yml                       # Full run: genkey → serversprep → so-updates → serversconf → deploy-vim → install-docker
