@@ -76,7 +76,8 @@ Security patches are applied automatically without manual intervention.
 
 - Never commit `~/.vault_pass.txt` to git
 - Never commit `group_vars/all.yml` in decrypted form
-- Add both to `.gitignore` as a safety net (a `.gitignore` file does not yet exist in this project)
+- Never commit `ssh_keys/adempiere_installation_key` (the private key) — it is gitignored; only the `.pub` is tracked
+- A `.gitignore` is in place covering all of the above
 - If a secret is ever exposed: rotate it immediately, then update the vault
 
 ---

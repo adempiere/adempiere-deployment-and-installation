@@ -1,21 +1,26 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # tasks file for roles/genkey
-- name: Ensure the user has an SSH keypair generated on the remote
+- name: Ensure ssh_keys directory exists inside the project
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/ssh_keys"
+    state: directory
+    mode: '0700'
+
+- name: Ensure the project SSH keypair exists
   community.crypto.openssh_keypair:
-    path: "{{ ansible_facts['user_dir'] }}/.ssh/id_rsa"
+    path: "{{ playbook_dir }}/ssh_keys/{{ key_name }}"
     type: rsa
     size: "{{ key_size }}"
     state: present
     comment: "admin-key-{{ ansible_facts['nodename'] }}"
   register: ssh_key_info
 
-- name: Copy a public key to serversconf playbook
+- name: Copy public key to serversconf role
   ansible.builtin.copy:
-    src: "{{ ansible_facts['user_dir'] }}/.ssh/id_rsa.pub"
-    dest: "{{  playbook_dir }}/roles/serversconf/files/public_keys/present/admin/{{ ansible_facts['nodename'] }}.pub"
+    src: "{{ playbook_dir }}/ssh_keys/{{ key_name }}.pub"
+    dest: "{{ playbook_dir }}/roles/serversconf/files/public_keys/present/admin/{{ ansible_facts['nodename'] }}.pub"
 
-
-- name: Mostrar donde se guardó la llave para confirmar
+- name: Show where the keypair was saved
   debug:
-    msg: "La llave se generó en {{ ssh_key_info.filename }} con el comentario: {{ ssh_key_info.comment }}"
+    msg: "Keypair at {{ ssh_key_info.filename }} — comment: {{ ssh_key_info.comment }}"

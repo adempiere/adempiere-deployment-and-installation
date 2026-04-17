@@ -104,13 +104,13 @@ cat inventories/hosts
 
 ---
 
-### 0.7 SSH keypair exists on the control node
+### 0.7 SSH keypair exists inside the project
 
 ```bash
-ls -la ~/.ssh/id_rsa ~/.ssh/id_rsa.pub
+ls -la ssh_keys/adempiere_installation_key ssh_keys/adempiere_installation_key.pub
 ```
 
-**Expected:** Both files exist.  
+**Expected:** Both files exist; the private key has mode `0600` or `0640`.  
 **Failure:** Generate the keypair:
 ```bash
 ansible-playbook genkey.yml

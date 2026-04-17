@@ -2,3 +2,4 @@
 ---
 # defaults file for roles/genkey
 key_size: 4096
+key_name: adempiere_installation_key

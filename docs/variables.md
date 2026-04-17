@@ -25,6 +25,7 @@ These must be set manually via `ansible-vault edit group_vars/all.yml`.
 | `timezone` | `deploy-traefik` role | Timezone for the Traefik container |
 | `custom_sshport` | All post-hardening playbooks, `serversconf` role | Custom SSH port. **Must NOT also be defined in vault.yml — remove it there if present.** |
 | `install_path` | `deploy-adempiere`, `adempiere-restoredb` roles | Base directory on BackEnd for ADempiere |
+| `ansible_ssh_private_key_file` | All playbooks connecting to remote servers | Path to the project SSH private key (`ssh_keys/adempiere_installation_key`) |
 
 ---
 
@@ -33,6 +34,7 @@ These must be set manually via `ansible-vault edit group_vars/all.yml`.
 | Variable | Default | Description |
 |---|---|---|
 | `key_size` | `4096` | RSA key size in bits |
+| `key_name` | `adempiere_installation_key` | Filename for the keypair under `ssh_keys/` |
 
 ---
 

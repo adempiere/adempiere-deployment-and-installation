@@ -15,6 +15,10 @@ deployment_and_installation/
 │   ├── all.yml                    # AES-256 vault-encrypted secrets + deployment values — gitignored
 │   └── all_template.yml           # Template for all.yml — copy this, fill in values, then encrypt
 │
+├── ssh_keys/
+│   ├── adempiere_installation_key      # SSH private key — gitignored, never commit
+│   └── adempiere_installation_key.pub  # SSH public key — tracked by git, deployed to servers by serversconf
+│
 │                                  # --- Orchestration playbooks ---
 │                                  # Chain individual playbooks into full deployment sequences.
 │                                  # Run one of these to execute multiple steps with a single command.
@@ -23,7 +27,7 @@ deployment_and_installation/
 │
 │                                  # --- Individual playbooks ---
 │                                  # Each does exactly one thing. Can be run standalone or called by an orchestration playbook.
-├── genkey.yml                     # Generate RSA keypair on the control node (localhost)
+├── genkey.yml                     # Generate RSA keypair on the control node (localhost); stores it in ssh_keys/
 ├── serversprep.yml                # Distribute SSH public key to all contabo servers
 ├── so-updates.yml                 # OS dist-upgrade + conditional reboot
 ├── serversconf.yml                # Server hardening, user creation, SSH config
@@ -82,7 +86,8 @@ roles/<role-name>/
 | File | Purpose |
 |---|---|
 | `group_vars/all.yml` | Vault-encrypted variables shared across all hosts (passwords, IPs, domain, SSH port) |
-| `roles/serversconf/files/public_keys/present/admin/` | SSH public keys deployed to all servers as authorized admin keys |
+| `ssh_keys/adempiere_installation_key.pub` | Project SSH public key — committed to git; deployed to servers by `serversconf` |
+| `roles/serversconf/files/public_keys/present/admin/` | SSH public keys deployed to all servers as authorized admin keys; populated by `genkey.yml` |
 | `roles/adempiere-restoredb/files/` | PostgreSQL backup files (`.sql.gz`) to be restored |
 | `roles/deploy-adempiere/templates/override.env.j2` | Generates the Docker Compose environment file with runtime values |
 | `roles/deploy-traefik/templates/app-adempiere.yaml.j2` | Traefik routing rules for ADempiere |

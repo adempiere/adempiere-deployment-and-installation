@@ -45,13 +45,13 @@ Complete the [Pre-Flight Checklist](installation.md#pre-flight-checklist) before
 
 ## Step 1 — Generate SSH Keypair
 
-Runs on **localhost only**. Creates `~/.ssh/id_rsa` and copies the public key into the `serversconf` role.
+Runs on **localhost only**. Creates the keypair at `ssh_keys/adempiere_installation_key` (private, gitignored) and `ssh_keys/adempiere_installation_key.pub` (public, tracked by git) inside the project, then copies the public key into the `serversconf` role.
 
 ```bash
 ansible-playbook genkey.yml
 ```
 
-Idempotent — skips key generation if `~/.ssh/id_rsa` already exists.
+Idempotent — skips key generation if `ssh_keys/adempiere_installation_key` already exists.
 
 > **Known issue:** `genkey.yml` has a typo `connection: loca1` (digit `1`). Ansible warns but falls back correctly to local execution. See [known-issues.md](known-issues.md).
 

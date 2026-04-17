@@ -130,7 +130,7 @@
     key: "{{ lookup('file', item[1]) }}"
   with_nested:
     - [ 'root', '{{ username }}' ]
-    - [ 'public_keys/present/admin/oscar.pub', 'public_keys/present/admin/ct1001.pub' ]
+    - "{{ lookup('fileglob', 'public_keys/present/admin/*.pub', wantlist=True) }}"
 
 - name: Create unattended-upgrades configuration files
   template:

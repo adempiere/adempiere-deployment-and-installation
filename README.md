@@ -111,6 +111,7 @@ For the detailed relationships between the specific playbooks, roles, and invent
 | Debugging & troubleshooting | [docs/troubleshooting.md](docs/troubleshooting.md) |
 | Known issues & technical debt | [docs/known-issues.md](docs/known-issues.md) |
 | Security notes | [docs/security.md](docs/security.md) |
+| Files explained — per-file deep dives | [docs/files-explained.md](docs/files-explained.md) |
 
 ---
 

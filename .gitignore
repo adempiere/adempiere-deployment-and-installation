@@ -1,6 +1,9 @@
 # Vault — real secrets file, never commit
 group_vars/all.yml
 
+# SSH private key — never commit; public key (.pub) is intentionally tracked
+ssh_keys/adempiere_installation_key
+
 # Ansible runtime files
 *.retry
 .ansible/
