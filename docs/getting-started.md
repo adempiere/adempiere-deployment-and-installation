@@ -99,6 +99,25 @@ ansible-playbook main-w-traefik.yml --syntax-check
 
 For a detailed explanation of each check, see [testing.md](testing.md).
 
+Then verify that the servers are reachable before any playbook touches them:
+
+```bash
+ansible servers -m ping \
+  -e "ansible_user=root ansible_password=$(ansible-vault view group_vars/all.yml | grep root_user_password | awk '{print $2}')"
+```
+
+This single command replaces the need to manually run `ping`, `nc`, or `ssh` against each server IP.  
+If it returns `pong` for both hosts, you have confirmed:
+- The server is reachable over the network
+- Port 22 is open (SSH is listening)
+- Root login with the vault password works
+- Python is available on the server (required by Ansible)
+
+The IPs are never typed directly — Ansible reads them from `inventories/hosts.yml`. This also means the command stays correct if IPs change; only the inventory needs updating.
+
+**Expected:** `pong` for every host in the `servers` group.  
+If anything fails here, do not proceed — fix connectivity before running any playbook. See the SSH / Network section in [testing.md](testing.md) for diagnostics.
+
 ---
 
 ## Phase 1 — BackEnd dry run
