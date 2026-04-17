@@ -99,24 +99,23 @@ ansible-playbook main-w-traefik.yml --syntax-check
 
 For a detailed explanation of each check, see [testing.md](testing.md).
 
-Then verify that the servers are reachable before any playbook touches them:
+Then verify that the BackEnd is reachable before any playbook touches it:
 
 ```bash
-ansible servers -m ping \
-  -e "ansible_user=root ansible_password=$(ansible-vault view group_vars/all.yml | grep root_user_password | awk '{print $2}')"
+ROOT_PASS=$(ansible-vault view group_vars/all.yml | grep root_user_password | awk '{print $2}') && ansible BackEnd -m ping -e "ansible_user=root ansible_password=$ROOT_PASS"
 ```
 
-This single command replaces the need to manually run `ping`, `nc`, or `ssh` against each server IP.  
-If it returns `pong` for both hosts, you have confirmed:
+This single command replaces the need to manually run `ping`, `nc`, or `ssh` against the server IP.  
+If it returns `pong`, you have confirmed:
 - The server is reachable over the network
 - Port 22 is open (SSH is listening)
 - Root login with the vault password works
 - Python is available on the server (required by Ansible)
 
-The IPs are never typed directly — Ansible reads them from `inventories/hosts.yml`. This also means the command stays correct if IPs change; only the inventory needs updating.
+The IP is never typed directly — Ansible reads it from `inventories/hosts.yml`. This also means the command stays correct if the IP changes; only the inventory needs updating.
 
-**Expected:** `pong` for every host in the `servers` group.  
-If anything fails here, do not proceed — fix connectivity before running any playbook. See the SSH / Network section in [testing.md](testing.md) for diagnostics.
+**Expected:** `pong` from `backend`.  
+If it fails, do not proceed — fix connectivity first. See the SSH / Network section in [testing.md](testing.md) for diagnostics.
 
 ---
 
@@ -172,6 +171,15 @@ If anything is wrong, see [testing.md](testing.md) for diagnostics.
 ---
 
 ## Phase 3 — FrontEnd dry run
+
+Before proceeding, verify the FrontEnd is reachable:
+
+```bash
+ROOT_PASS=$(ansible-vault view group_vars/all.yml | grep root_user_password | awk '{print $2}') && ansible FrontEnd -m ping -e "ansible_user=root ansible_password=$ROOT_PASS"
+```
+
+**Expected:** `pong` from `frontend`.  
+If it fails, fix connectivity first. See the SSH / Network section in [testing.md](testing.md) for diagnostics.
 
 > **Constraint:** The Docker playbooks (`install-docker`, `deploy-traefik`) connect as `<admin_user>` on the custom SSH port. For `--check` to work on those, the `adempiere_username` user must already exist on the FrontEnd. The OS playbooks are dry-run first (root, port 22); then `serversconf.yml` is run for real to create the user; then the Docker playbooks are dry-run.
 

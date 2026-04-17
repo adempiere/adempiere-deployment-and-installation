@@ -9,9 +9,11 @@
 | Python | 3.9 or newer |
 | SSH client | OpenSSH |
 | Ansible collections | `community.docker`, `community.postgresql`, `community.crypto` |
+| `sshpass` | Required for password-based SSH authentication (used during initial server setup) |
 
-Install required collections:
+Install required tools and collections:
 ```bash
+sudo apt install sshpass
 ansible-galaxy collection install community.docker community.postgresql community.crypto
 ```
 
