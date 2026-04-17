@@ -28,7 +28,7 @@ Internet
 | `<frontend_ip>` | `FrontEnd` | Reverse proxy, TLS termination |
 | `<backend_ip>` | `BackEnd` | ADempiere application + database |
 | Both | `servers` | OS hardening, Docker, initial setup |
-| `<test_ip>` | `ansible-test` | Local lab VM for testing |
+| `<test_ip>` | `ansible_test` | Local lab VM for testing |
 
 > Actual IPs are configured in `inventories/hosts.yml` — gitignored. Use `inventories/hosts_template.yml` as reference.
 

@@ -142,7 +142,7 @@ all:
     FrontEnd:
       hosts:
         frontend:
-    ansible-test:
+    ansible_test:
       hosts:
         test:
           ansible_host: <test_ip>
@@ -155,7 +155,7 @@ all:
 | `servers` | Both servers — base setup: OS hardening, Docker, SSH config |
 | `BackEnd` | ADempiere application + PostgreSQL server only |
 | `FrontEnd` | Traefik reverse proxy server only |
-| `ansible-test` | Optional local lab VM; not part of `servers` |
+| `ansible_test` | Optional local lab VM; not part of `servers` |
 
 **Why `BackEnd` and `FrontEnd` entries look empty:**
 

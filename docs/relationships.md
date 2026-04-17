@@ -102,14 +102,14 @@ GROUP             SERVERS
 servers           <backend_ip> + <frontend_ip> (both)
 BackEnd           <backend_ip>
 FrontEnd          <frontend_ip>
-ansible-test      <test_ip>
+ansible_test      <test_ip>
 ```
 
 - These are the logical server groups defined in `inventories/hosts.yml`.  
 - Every playbook must name one of these groups in its `hosts:` line to know which servers to connect to.  
 - `servers` covers both servers and is used for base setup tasks.  
 - `BackEnd` and `FrontEnd` are subsets used for application-level deployments.  
-- `ansible-test` is a local VM used to test playbooks safely without touching production.
+- `ansible_test` is a local VM used to test playbooks safely without touching production.
 
 ---
 
@@ -127,7 +127,7 @@ servers (both servers)         serversprep.yml            --> serversprep
 BackEnd  (<backend_ip>)        deploy-adempiere.yml       --> deploy-adempiere
                                adempiere-restoredb.yml    --> adempiere-restoredb
 FrontEnd (<frontend_ip>)       deploy-traefik.yml         --> deploy-traefik
-ansible-test (<test_ip>)       any playbook + --limit ansible-test
+ansible_test (<test_ip>)       any playbook + --limit ansible_test
 ```
 
 This is the core mapping of the project.  

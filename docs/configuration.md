@@ -30,7 +30,7 @@ all:
     FrontEnd:
       hosts:
         frontend:
-    ansible-test:
+    ansible_test:
       hosts:
         test:
           ansible_host: <test_ip>

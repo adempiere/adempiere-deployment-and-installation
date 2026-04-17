@@ -11,7 +11,7 @@
 #   servers      — all managed servers (OS hardening, Docker, initial setup)
 #   BackEnd      — ADempiere application + database
 #   FrontEnd     — Traefik reverse proxy
-#   ansible-test — optional local lab VM for testing
+#   ansible_test — optional local lab VM for testing
 #
 # To add a second BackEnd server: uncomment the backend2 block below and set its IP.
 
@@ -36,7 +36,7 @@ all:
       hosts:
         frontend:
 
-    ansible-test:
+    ansible_test:
       hosts:
         test:
           ansible_host: <test_ip>   # e.g. 10.10.0.5

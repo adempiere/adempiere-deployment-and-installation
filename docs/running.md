@@ -41,7 +41,7 @@ ansible-playbook serversconf.yml --check --diff   # also shows file diffs
 
 ```bash
 ansible-playbook so-updates.yml --limit <backend_ip>
-ansible-playbook deploy-adempiere.yml --limit ansible-test
+ansible-playbook deploy-adempiere.yml --limit ansible_test
 ```
 
 ### Start from a specific task
@@ -193,9 +193,9 @@ Servers reboot automatically if the kernel was updated.
 ### Scenario 7 — Test against a local VM (without touching production)
 
 ```bash
-# Limit to the ansible-test group (see inventories/hosts.yml)
-ansible-playbook serversconf.yml --limit ansible-test
-ansible-playbook deploy-adempiere.yml --limit ansible-test
+# Limit to the ansible_test group (see inventories/hosts.yml)
+ansible-playbook serversconf.yml --limit ansible_test
+ansible-playbook deploy-adempiere.yml --limit ansible_test
 ```
 
 ---
