@@ -66,6 +66,17 @@ See [security.md](security.md) — this is the most urgent item before pushing t
 
 ---
 
+## 10. Docker 29+ rejects `linux/amd64/v2` images without explicit platform hint
+
+**Affected playbook:** `deploy-adempiere.yml`
+**Problem:** Several images in the `adempiere-ui-gateway` stack (e.g. `ghcr.io/adempiere/dictionary-rs`) are published with a `linux/amd64/v2` manifest only — no plain `linux/amd64` entry. Docker 28 ignores the variant and pulls anyway. Docker 29 treats the variant as a strict requirement and returns:
+```
+Error response from daemon: no matching manifest for linux/amd64 in the manifest list entries: not found
+```
+**Fix already applied:** The `deploy-adempiere` role sets `DOCKER_DEFAULT_PLATFORM={{ docker_default_platform }}` (default: `linux/amd64/v2`) when running `start-all.sh`, so Docker Compose requests the correct variant. The default is set in `roles/deploy-adempiere/defaults/main.yml` and can be overridden if the target server requires a different platform.
+
+---
+
 ## 9. Admin user password needs to be changed before production use
 
 **File:** `roles/serversconf/vars/main.yml` — variable `your_password`  

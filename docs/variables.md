@@ -49,8 +49,7 @@ These must be set manually via `ansible-vault edit group_vars/all/vault.yml`.
 | `repo_version` | `adempiere-trunk` | Branch or tag to deploy |
 | `be_user` | `{{ adempiere_username }}` | File owner on the BackEnd server — inherits from `adempiere_username` |
 | `postgres_external_port` | `5432` | PostgreSQL port exposed to the host |
-| `status_file` | `/opt/development/script_status.txt` | Idempotency flag for `start-all.sh` |
-| `git_status_file` | `/opt/development/git_status.txt` | Idempotency flag for git clone |
+| `docker_default_platform` | `linux/amd64/v2` | Platform hint passed to Docker when pulling images. Required because the stack images are built for `linux/amd64/v2` only and Docker 29+ does not automatically match a plain `linux/amd64` request to a `v2` manifest. |
 
 ---
 

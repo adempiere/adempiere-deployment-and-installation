@@ -4,5 +4,6 @@
     chdir: "{{ install_path }}/adempiere-ui-gateway/docker-compose/"
   environment:
     PWD: "{{ install_path }}/adempiere-ui-gateway/docker-compose/"
+    DOCKER_DEFAULT_PLATFORM: "{{ docker_default_platform }}"
   register: start_all
   changed_when: true
