@@ -15,26 +15,26 @@
 ## WHAT THIS ROLE DOES (in order):
 ##   1. Gathers network facts (used in override.env templating).
 ##   2. Creates the installation directory ({{ install_path }}) owned by {{ be_user }}.
-##   3. Checks a status file to avoid re-cloning if already done.
-##   4. Clones the adempiere-ui-gateway repo from GitHub ({{ repo_url }}, branch {{ repo_version }}).
-##   5. Generates override.env from templates/override.env.j2 (contains DB passwords, URLs, etc.)
+##   3. Clones or updates the adempiere-ui-gateway repo from GitHub ({{ repo_url }},
+##      branch {{ repo_version }}). ansible.builtin.git with update: yes fetches the latest
+##      commits on every run — idempotent by design, no sentinel file needed.
+##   4. Generates override.env from templates/override.env.j2 (contains DB passwords, URLs, etc.)
 ##      with mode 0600 — only the owner can read it.
-##   6. Checks a second status file to avoid restarting an already-running stack.
-##   7. Includes start.yml — runs docker compose up for the ADempiere stack.
-##   8. Includes wait.yml — waits until ADempiere is responding on its port.
-##   9. Includes validate.yml — performs health checks.
-##  10. Includes status.yml — writes "runned" to the status file to prevent re-execution.
+##   5. Checks whether the ADempiere container is already running via docker ps.
+##   6. If not running: includes start.yml (docker compose up) and wait.yml (waits for container).
+##   7. Includes validate.yml — checks for containers in bad state (Exited/Restarting/Dead).
+##   8. Includes status.yml — prints the running container table.
 ##
-## KEY VARIABLES (configure in roles/deploy-adempiere/defaults/main.yml or override.yml):
-##   install_path     : directory where the repo is cloned
-##   be_user          : owner of files and compose operations (inherits from adempiere_username)
-##   repo_url         : GitHub URL of adempiere-ui-gateway
-##   repo_version     : branch or tag to deploy (e.g. "main", "v3.9.4")
-##   git_status_file  : path to the clone status sentinel file
-##   status_file      : path to the run status sentinel file
+## KEY VARIABLES (configure in group_vars/all/vars.yml or roles/deploy-adempiere/defaults/main.yml):
+##   install_path               : directory where the repo is cloned
+##   be_user                    : owner of files and compose operations (inherits from adempiere_username)
+##   repo_url                   : GitHub URL of adempiere-ui-gateway
+##   repo_version               : branch or tag to deploy (e.g. "main", "adempiere-trunk")
+##   adempiere_container_filter : string used to filter docker ps output
 ##
 ## SIDE EFFECTS:
-##   - Pulls from GitHub on each run if the status file is absent or has unexpected content.
+##   - Pulls from GitHub on each run (update: yes). Local uncommitted changes on the server
+##     will be overwritten if they conflict with the remote branch.
 ##   - override.env is written with mode 0600 and contains plaintext secrets at rest on the server.
 ##   - Docker Compose stack remains running after the play; it is not stopped by this role.
 ##
@@ -54,18 +54,7 @@
     mode: "0755"
   become: true
 
-- name: Check git clone status file
-  ansible.builtin.stat:
-    path: "{{ git_status_file }}"
-  register: git_status_result
-
-- name: Read git status file
-  ansible.builtin.slurp:
-    path: "{{ git_status_file }}"
-  register: git_status_content
-  when: git_status_result.stat.exists
-
-- name: Clone adempiere-ui-gateway repository
+- name: Clone or update adempiere-ui-gateway repository
   ansible.builtin.git:
     repo: "{{ repo_url }}"
     dest: "{{ install_path }}/adempiere-ui-gateway"
@@ -73,19 +62,6 @@
     update: yes
   become: yes
   become_user: "{{ be_user }}"
-  register: git_clone_result
-  when: >
-    not git_status_result.stat.exists or
-    (git_status_content.content | b64decode | trim) != "cloned"
-
-- name: Write clone status file
-  ansible.builtin.copy:
-    dest: "{{ git_status_file }}"
-    content: "cloned"
-    owner: "{{ be_user }}"
-    mode: "0644"
-  become: yes
-  when: git_clone_result is changed
 
 - name: Generate override.env file
   ansible.builtin.template:
@@ -95,16 +71,12 @@
     group: "{{ be_user }}"
     mode: "0600"
 
-- name: Check start script status file
-  stat:
-    path: "{{ status_file }}"
-  register: status_result
-
-- name: Read git status file
-  ansible.builtin.slurp:
-    path: "{{ status_file }}"
-  register: status_content
-  when: status_result.stat.exists
+- name: Check if ADempiere container is already running
+  ansible.builtin.command: >
+    docker ps --filter "name={{ adempiere_container_filter }}"
+    --format "{{'{{'}}.Names{{'}}'}}"
+  register: container_running
+  changed_when: false
 
 - name: Import tasks
   ansible.builtin.include_tasks:
@@ -112,9 +84,7 @@
   with_items:
     - start.yml
     - wait.yml
-  when: >
-    not status_result.stat.exists or
-    (status_content.content | b64decode | trim) != "runned"
+  when: container_running.stdout | trim == ""
 
 - name: Import tasks
   ansible.builtin.include_tasks:
