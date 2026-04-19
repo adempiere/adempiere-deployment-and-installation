@@ -18,13 +18,11 @@ These must be set manually via `ansible-vault edit group_vars/all/vault.yml`.
 
 | Variable | Used in | Description |
 |---|---|---|
-| `admin_user` | All post-hardening playbooks, `deploy-adempiere`, `adempiere-restoredb` roles | Alias for the non-root system user — see `adempiere_username` |
-| `frontend_ip` | `deploy-traefik` role | Public IP of the FrontEnd server |
-| `backend_ip` | `deploy-traefik` role | IP of the BackEnd server (used in Traefik routing rules) |
-| `dns_domain` | `deploy-traefik` role | Base domain for routing and TLS certificates |
-| `timezone` | `deploy-traefik` role | Timezone for the Traefik container |
-| `custom_sshport` | All post-hardening playbooks, `serversconf` role | Custom SSH port. **Must NOT also be defined in vault.yml — remove it there if present.** |
-| `install_path` | `deploy-adempiere`, `adempiere-restoredb` roles | Base directory on BackEnd for ADempiere |
+| `adempiere_username` | All post-hardening playbooks, `serversconf` role | Admin username created on every server — also defined here as a non-secret config value |
+| `custom_sshport` | All post-hardening playbooks, `serversconf` role | Custom SSH port — serversconf moves SSH from 22 to this port |
+| `dns_domain` | `deploy-traefik` role | Base domain for routing and TLS certificates (e.g. `example.com`) |
+| `timezone` | `deploy-traefik` role | Timezone for containers (e.g. `America/El_Salvador`, `Europe/Berlin`) |
+| `key_name` | `genkey` role, `serversprep` role | SSH keypair filename under `ssh_keys/` |
 | `ansible_ssh_private_key_file` | All playbooks connecting to remote servers | Path to the project SSH private key (`ssh_keys/adempiere_installation_key`) |
 
 ---

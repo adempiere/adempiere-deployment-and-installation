@@ -3,7 +3,7 @@
 # defaults file for roles/deploy-traefik
 docker_base_path: /docker
 socket_container_name: socket-proxy
-dns_domain: systemhauswestfalia.dpdns.org
+# dns_domain is set in group_vars/all/vars.yml — do not set a default here
 socket_image: lscr.io/linuxserver/socket-proxy:latest
 host: adempiere
 router_name: "{{ host }}-rtr"
@@ -23,6 +23,6 @@ traefik_log_level: DEBUG
 traefik_dns_provider: cloudflare
 traefik_socket_uri: "{{ socket_container_name }}" # socket-proxy is the name of a container localy, if it connects remotely put the ip
 middlewares: []
-timezone: America/El_Salvador # Edit your timezone
+# timezone is set in group_vars/all/vars.yml — do not set a default here
 servers:
   - "http://{{ hostvars['backend']['ansible_host'] }}"

@@ -16,8 +16,8 @@ HISTCONTROL=ignoreboth
 shopt -s histappend
 
 # for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
-HISTFILESIZE=99999999
-HISTSIZE=99999999
+HISTSIZE=4000
+HISTFILESIZE=6000
 
 # check the window size after each command and, if necessary,
 # update the values of LINES and COLUMNS.
@@ -76,9 +76,9 @@ fi
 #export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
 
 # some more ls aliases
-#alias ll='ls -l'
-#alias la='ls -A'
-#alias l='ls -CF'
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
 
 # Alias definitions.
 # You may want to put all your additions into a separate file like
@@ -99,3 +99,14 @@ if ! shopt -oq posix; then
     . /etc/bash_completion
   fi
 fi
+
+# SHW: Prompt
+PS1='\[\033[01;32m\][$(date +%Y%m%d-%H:%M:%S)]-${debian_chroot:+($debian_chroot)}\[\033[48;5;95;38;5;214m\]\u\[\033[01;32m\]@\H\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+
+# SHW: Git Logs
+alias git_log_1="git log --pretty=format:'%C(yellow)%h %C(red)%ad %C(blue)%an%C(green)%d %Creset%s' --date=short --graph --decorate --name-status"
+alias git_log_2="git log --pretty=format:'%C(yellow)%h %C(red)%ad %C(blue)%an%C(green)%d %Creset%s' --date=short --graph --decorate --name-status -p"
+alias git_log_3="git log --pretty=format:'%C(yellow)%h %C(red)%ad %C(blue)%an%C(green)%d %Creset%s' --date=short --graph --decorate -p"
+alias git_log_4="git log --pretty=format:'%C(yellow)%h %C(red)%ad %C(blue)%an%C(green)%d %Creset%s%n' --date=short --graph --decorate -p"
+alias git_log_5="git log --pretty=format:'%C(yellow)%h %C(red)%ad %C(blue)%an%C(green)%d %Creset%s%n' --date=short --graph --decorate -p -- env_template.env"
+alias git_log_6="git log --pretty=format:'%C(yellow)%h %C(red)%ad %C(blue)%an%C(green)%d %Creset%s%n' --date=short --graph --decorate -p"

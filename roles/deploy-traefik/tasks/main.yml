@@ -7,7 +7,7 @@
 ##
 ## CONTEXT:
 ##   - Targets the 'FrontEnd' group only. Do NOT run against BackEnd.
-##   - Runs as 'westfalia' user with sudo (become: true). Requires westfalia credentials from vault.
+##   - Runs as adempiere_username with sudo (become: true). Requires credentials from vault.
 ##   - Must run AFTER install-docker.yml (Docker CE must be present).
 ##   - Deploys TWO containers:
 ##       traefik       — the reverse proxy (ports 80, 443)

@@ -14,7 +14,7 @@ Before running anything, work through:
 | Phase | Target | Mode | Purpose |
 |---|---|---|---|
 | **0** | local | — | One-time control-node setup + pre-flight checks |
-| **1** | BackEnd | `--check` | Dry run — validate configuration, catch errors early |
+| **1** | BackEnd | `--check` | Dry run — validate OS configuration (`serversprep`, `so-updates`, `serversconf`) |
 | **2** | BackEnd | real | Bring up ADempiere + PostgreSQL; verify directly on BackEnd IP |
 | **3** | FrontEnd | `--check` | Dry run — validate Traefik configuration |
 | **4** | FrontEnd | real | Bring up Traefik; full system reachable via domain + HTTPS |
@@ -27,8 +27,7 @@ You do not reinstall it when you update ADempiere.
 
 > **Note on `--check` reliability:**   
 > For OS-level playbooks (`serversprep`, `so-updates`, `serversconf`) dry-run output is accurate.  
-> For Docker playbooks (`install-docker`, `deploy-adempiere`, `deploy-traefik`) it is approximate — images are not pulled and containers are not started, so some tasks may report `changed` or `skipped` inconsistently.   
-> The main value is validating your variable configuration and Jinja2 templates.
+> For Docker playbooks (`install-docker`, `deploy-adempiere`, `deploy-traefik`) `--check` is only run in Phase 3 (FrontEnd), after `serversconf.yml` has run for real and the user + custom SSH port exist. Output is approximate — images are not pulled and containers are not started, so some tasks may report `changed` or `skipped` inconsistently. The main value is validating your variable configuration and Jinja2 templates.
 >
 > **Expected `--check` warning in `serversconf.yml`:** The "Add ADMIN ssh-keys" task will report a failure for `adempiere_username` followed by `...ignoring`. This is expected: in check mode the user creation task does not actually run, so the user does not exist yet when the key task runs. The error is suppressed with `ignore_errors: "{{ ansible_check_mode }}"` and does not affect real runs.
 
@@ -136,9 +135,10 @@ If it fails, do not proceed — fix connectivity first. See the SSH / Network se
 ansible-playbook serversprep.yml    --limit BackEnd      --check
 ansible-playbook so-updates.yml     --limit BackEnd      --check
 ansible-playbook serversconf.yml    --limit BackEnd      --check
-ansible-playbook install-docker.yml --limit BackEnd      --check  # approximate
-ansible-playbook deploy-adempiere.yml                    --check  # approximate
 ```
+
+> **Why `install-docker.yml` and `deploy-adempiere.yml` are not dry-run here:**  
+> Both connect as `adempiere_username` on the custom SSH port. Neither the user nor the port exist until `serversconf.yml` has run for real (Phase 2). Running `--check` at this stage will always fail with "Connection refused" — it provides no useful information.
 
 Review the output. Anything unexpected? Adjust `group_vars/all/vars.yml` or `group_vars/all/vault.yml` and re-run `--check` before proceeding.
 

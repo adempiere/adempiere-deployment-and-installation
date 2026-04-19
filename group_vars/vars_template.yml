@@ -28,3 +28,11 @@ adempiere_username: your-admin-username
 # Custom SSH port — serversconf.yml moves SSH from port 22 to this port.
 # Must match what is already configured on the servers after serversconf has run.
 custom_sshport: 10099
+
+# Base domain for routing and TLS certificates.
+# Used by deploy-traefik.yml to configure Traefik routing rules and the Let's Encrypt certificate.
+dns_domain: your-domain.example.com
+
+# Timezone for containers (e.g. Europe/Berlin, America/New_York).
+# See https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+timezone: your-timezone

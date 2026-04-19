@@ -6,8 +6,8 @@
 ##
 ## CONTEXT:
 ##   - Targets the 'BackEnd' group only. Do NOT run against FrontEnd.
-##   - Runs as 'westfalia' user with sudo (become: true). Requires westfalia credentials
-##     from vault (westfaila_ansible_password, westfalia_ansible_become_pass).
+##   - Runs as adempiere_username with sudo (become: true). Requires credentials
+##     from vault (adempiere_user_password, adempiere_user_become_pass).
 ##   - Must run AFTER install-docker.yml (Docker CE must be present).
 ##   - The ADempiere container stack (adempiere-ui-gateway) includes the application server
 ##     and a PostgreSQL database. It is accessed internally by Traefik on the FrontEnd via HTTP.
@@ -26,8 +26,8 @@
 ##  10. Includes status.yml — writes "runned" to the status file to prevent re-execution.
 ##
 ## KEY VARIABLES (configure in roles/deploy-adempiere/defaults/main.yml or override.yml):
-##   install_path     : directory where the repo is cloned (e.g. /home/westfalia/dev)
-##   be_user          : owner of files and compose operations (e.g. "westfalia")
+##   install_path     : directory where the repo is cloned
+##   be_user          : owner of files and compose operations (inherits from adempiere_username)
 ##   repo_url         : GitHub URL of adempiere-ui-gateway
 ##   repo_version     : branch or tag to deploy (e.g. "main", "v3.9.4")
 ##   git_status_file  : path to the clone status sentinel file

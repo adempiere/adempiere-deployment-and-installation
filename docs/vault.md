@@ -95,7 +95,7 @@ ansible_ssh_private_key_file: "{{ playbook_dir }}/ssh_keys/adempiere_installatio
 adempiere_username: "your-admin-username"
 custom_sshport: 10099
 dns_domain: "your-domain.example.com"
-timezone: "Europe/Berlin"
+timezone: "America/El_Salvador"
 ```
 
 ---

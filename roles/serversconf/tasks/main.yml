@@ -8,7 +8,7 @@
 ##   - Runs as root (become: true). Requires root password from vault (root_user_password).
 ##   - Must run AFTER serversprep.yml (SSH key distribution) and so-updates.yml (OS update).
 ##   - After this role completes, root login is disabled. All subsequent playbooks connect
-##     as the 'westfalia' user on the custom SSH port (custom_sshport from group_vars).
+##     as the adempiere_username user on the custom SSH port (custom_sshport from group_vars).
 ##
 ## WHAT THIS ROLE DOES (in order):
 ##   1. Updates the apt cache and installs ~35 utility packages.
@@ -22,8 +22,8 @@
 ##   9. Hardens sshd_config: disables root login, passwords, sets modern crypto algorithms.
 ##  10. Handlers restart ssh.socket (Ubuntu) and the SSH service after config changes.
 ##
-## KEY VARIABLES (configure in group_vars/all/override.yml or vault.yml):
-##   adempiere_username             : admin user to create (e.g. "westfalia")
+## KEY VARIABLES (configure in group_vars/all/vars.yml or vault.yml):
+##   adempiere_username             : admin user to create (set in group_vars/all/vars.yml)
 ##   your_password        : hashed password for the admin user (from vault)
 ##   root_user_password: root password for initial connection (from vault)
 ##   custom_sshport       : new SSH port (replaces 22)
@@ -68,18 +68,17 @@
       - nethogs
       - net-tools
       - nload
+      - fastfetch
       - nmon
       - pbzip2
       - pwgen
       - rsync
-      - screenfetch
       - tcpdump
       - tree
       - unattended-upgrades
       - vim
       - vnstat
       - wget
-      - xclip
       - zip
     state: present
 
