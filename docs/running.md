@@ -1,5 +1,20 @@
 # Running the System
 
+## Provisioning Scripts
+
+| Script | Description |
+|---|---|
+| `deploy-backend.sh` | Full BackEnd provisioning from a clean server reset — runs all steps in order |
+
+```bash
+./deploy-backend.sh           # live run
+./deploy-backend.sh --check   # dry run — shows what would change, no writes
+```
+
+Use `deploy-backend.sh` after resetting the backend server. It deletes the old SSH keypair, regenerates it, and runs all playbooks in the correct order. See [files-explained.md](files-explained.md) for details.
+
+---
+
 ## Playbook Reference
 
 | Playbook | Target | Description |

@@ -5,6 +5,43 @@ Each section covers one file: its name, location, and a full description.
 
 ---
 
+## deploy-backend.sh
+
+**Name:** `deploy-backend.sh`  
+**Location:** project root
+
+**Description:**
+
+Shell script that provisions the BackEnd server from scratch after a reset. Runs all playbooks in the correct order with a single command:
+
+```bash
+./deploy-backend.sh           # live run
+./deploy-backend.sh --check   # dry run
+```
+
+**Step sequence:**
+
+| Step | Playbook | Notes |
+|---|---|---|
+| 0 | *(local)* | Deletes old SSH keypair from `ssh_keys/` — skipped in `--check` mode |
+| 1 | `genkey.yml` | Generates a fresh RSA keypair on the control node |
+| 2 | `serversprep.yml --limit BackEnd` | Distributes the public key to the server (root, port 22) |
+| 3 | `so-updates.yml --limit BackEnd` | OS update + reboot |
+| 4 | `serversconf.yml --limit BackEnd` | Full server hardening |
+| 5 | `install-docker.yml --limit BackEnd` | Docker CE (pinned to 28.x) |
+| 6 | `deploy-adempiere.yml` | ADempiere container stack |
+
+**Why Step 0 deletes the keypair:**  
+`genkey.yml` uses `state: present` — it will not overwrite an existing keypair. After a server reset the old public key is gone from the server anyway, so keeping the old keypair on the control node would cause `serversprep.yml` to deploy a key that already existed. Deleting it first ensures a truly clean start.
+
+**`--check` mode caveat:**  
+`so-updates.yml` reboot tasks use `shell`/`command` and are skipped by Ansible in check mode — the dry run will not reflect the post-reboot state.
+
+**Live run safety:**  
+In live mode the script requires typing `YES` before proceeding, to prevent accidental runs against a production server.
+
+---
+
 ## roles/genkey/tasks/main.yml
 
 **Name:** `main.yml`  
@@ -249,6 +286,12 @@ vars:
 ```
 
 Play-level `vars:` are evaluated before `gather_facts`, so the correct user is in place for the very first connection.
+
+**Why `01-hardening.conf` and not `99-hardening.conf`:**
+
+Debian's `/etc/ssh/sshd_config` has `Include /etc/ssh/sshd_config.d/*.conf` at the **top** of the file. OpenSSH uses **first-match-wins**: the first time a directive appears wins; later occurrences are ignored. Because drop-in files are included in alphabetical order, `50-cloud-init.conf` (which hosting providers such as Contabo ship with `PasswordAuthentication yes`) is read **before** a `99-hardening.conf` — so the cloud-init value would win. Naming the drop-in `01-hardening.conf` ensures it is read first and its `PasswordAuthentication no` / `PermitRootLogin no` are the ones that take effect.
+
+Use `sudo sshd -T | grep -E "permitrootlogin|passwordauthentication"` to verify the effective config — never grep individual files, as drop-in interactions make that misleading.
 
 **`--check` mode behaviour — "Add ADMIN ssh-keys":**  
 
