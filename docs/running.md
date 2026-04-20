@@ -91,10 +91,28 @@ ansible all -m ping
 
 # Ping only BackEnd (after serversconf — adempiere_username user, custom port)
 ansible BackEnd -m ping \
-  -e "ansible_user=<adempiere_username> ansible_port=<custom_sshport>"
+  -e "ansible_user=westfalia" -e "ansible_port=10099"
+```
 
-# Gather facts from a host
-ansible <backend_ip> -m setup
+---
+
+## Inspecting Variables and Host Configuration
+
+Three commands, each showing a different scope. The first two read **local files only** — no SSH needed. The third connects to the remote host via SSH.
+
+**1. Inventory variables for a host** — what `group_vars`, `host_vars`, and the inventory file contribute. Fast, always works, no SSH:
+```bash
+ansible-inventory --host backend
+```
+
+**2. All Ansible variables the host will use during a play** — inventory variables plus any cached facts. Useful to verify a variable like `{{ install_path }}` or `{{ be_user }}` resolves correctly before running. No SSH:
+```bash
+ansible backend -m debug -a "var=hostvars[inventory_hostname]"
+```
+
+**3. Complete remote host configuration** — OS, kernel, CPU, memory, network interfaces, disk, and all system facts gathered live from the server. Requires SSH (pass port and user after serversconf has run):
+```bash
+ansible backend -m setup -e "ansible_port={{ custom_sshport }}" -e "ansible_user={{ adempiere_username }}"
 ```
 
 ---
