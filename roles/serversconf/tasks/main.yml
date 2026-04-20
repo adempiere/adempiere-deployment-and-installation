@@ -90,14 +90,20 @@
 
 - name: "INFO: Ensure a locale exists"
   ansible.builtin.debug:
-    msg: "locale=en_US.UTF-8"
+    msg: "locale={{ server_locale }}"
 
 - name: Ensure a locale exists
   locale_gen:
-    name: "{{item}}"
+    name: "{{ server_locale }}"
     state: present
-  with_items:
-      - en_US.UTF-8
+
+- name: "INFO: Set timezone"
+  ansible.builtin.debug:
+    msg: "timezone={{ timezone }}"
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ timezone }}"
 
 - name: "INFO: Create user"
   ansible.builtin.debug:
