@@ -19,8 +19,10 @@
 ##   6. Deploys SSH public keys from files/public_keys/present/admin/ to both users.
 ##   7. Configures unattended-upgrades (02periodic + 50unattended-upgrades templates).
 ##   8. Changes the SSH daemon port via a systemd socket override (override.conf.j2).
-##   9. Hardens sshd_config: disables root login, passwords, sets modern crypto algorithms.
-##  10. Handlers restart ssh.socket (Ubuntu) and the SSH service after config changes.
+##   9. Deploys sshd_config.d/99-hardening.conf — overrides hosting-provider defaults
+##      (e.g. cloud-init sets PasswordAuthentication yes; 99- sorts last and wins).
+##  10. Hardens sshd_config: disables root login, passwords, sets modern crypto algorithms.
+##  11. Handlers restart ssh.socket (Ubuntu) and the SSH service after config changes.
 ##
 ## KEY VARIABLES (configure in group_vars/all/vars.yml or vault.yml):
 ##   adempiere_username             : admin user to create (set in group_vars/all/vars.yml)
@@ -154,6 +156,15 @@
     src: override.conf.j2
     dest: /etc/systemd/system/ssh.socket.d/override.conf
   notify: restart ssh.socket
+
+- name: Deploy SSH hardening override (wins over cloud-init and hosting provider defaults)
+  ansible.builtin.template:
+    src: 01-hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/01-hardening.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart SSH
 
 - name: SSH hardening
   ansible.builtin.lineinfile:

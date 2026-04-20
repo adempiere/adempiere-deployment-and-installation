@@ -10,8 +10,13 @@ These two items will cause immediate failure or lock you out if not addressed fi
 ansible-vault view group_vars/all/vault.yml | grep custom_sshport   # should return nothing
 ```
 
-**2. Verify the SSH port before re-running `serversconf.yml`.**
-The port in `override.yml` is now `10099`. The servers were previously configured with port `42895` (from the old vault). If you run `serversconf.yml` with the new port, it will change the SSH port on the live servers. Make sure your firewall allows port `10099` before doing so, or you will be locked out.
+**2. Re-running `serversconf.yml` on an already-hardened server requires passing the port and user explicitly.**
+`serversconf.yml` connects as `root` on port 22 — the default for a fresh server. Once the role has hardened a server (port changed to `custom_sshport`, root login disabled, port 22 closed), Ansible can no longer reach it as root on port 22. Pass the current port and the admin user explicitly:
+```bash
+ansible-playbook serversconf.yml --limit BackEnd -e "ansible_port=10099" -e "ansible_user=westfalia"
+ansible-playbook serversconf.yml --limit FrontEnd -e "ansible_port=10099" -e "ansible_user=westfalia"
+```
+Other playbooks (`deploy-adempiere.yml`, `install-docker.yml`) set `ansible_port` automatically via a pre-task and are not affected by this.
 
 ---
 

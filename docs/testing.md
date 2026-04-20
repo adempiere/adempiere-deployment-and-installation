@@ -115,25 +115,21 @@ ss -tlnp | grep sshd
 
 ---
 
-### Root login still enabled
+### Root login still enabled / password authentication still enabled
+
+Always use `sshd -T` to check the **effective** SSH config — it merges `sshd_config` and all drop-in files in `sshd_config.d/`. Grepping individual files can be misleading when hosting providers (e.g. Contabo's `50-cloud-init.conf`) override settings in a drop-in file.
 
 ```bash
-grep PermitRootLogin /etc/ssh/sshd_config
+sudo sshd -T | grep -E "permitrootlogin|passwordauthentication"
 ```
 
-**Expected:** `PermitRootLogin no`  
-**Failure:** Re-run `serversconf.yml`.
-
----
-
-### Password authentication still enabled
-
-```bash
-grep PasswordAuthentication /etc/ssh/sshd_config
+**Expected:**
+```
+permitrootlogin no
+passwordauthentication no
 ```
 
-**Expected:** `PasswordAuthentication no`  
-**Failure:** Re-run `serversconf.yml`.
+**Failure:** Re-run `serversconf.yml` (see known-issues.md item 2 for the correct command on an already-hardened server).
 
 ---
 

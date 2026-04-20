@@ -69,9 +69,11 @@ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | head -1
 sudo docker ps -a | grep adempiere
 sudo docker logs adempiere-ui-gateway
 cd /opt/development/adempiere-ui-gateway/docker-compose
-sudo docker compose ps
-sudo docker compose logs
+sudo env PWD=$PWD docker compose ps
+sudo env PWD=$PWD docker compose logs
 ```
+
+> **Note:** Always use `sudo env PWD=$PWD docker compose …` when running Docker Compose commands manually. `sudo` resets environment variables including `PWD`; without it Docker Compose warns and may resolve paths incorrectly.
 
 **Common causes:**
 - `override.env` was not generated (missing PostgreSQL credentials in vault)
