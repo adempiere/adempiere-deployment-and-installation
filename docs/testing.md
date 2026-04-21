@@ -188,24 +188,12 @@ docker ps
 
 ---
 
-### Status files missing — deployment did not complete
-
-```bash
-cat /opt/development/git_status.txt
-cat /opt/development/script_status.txt
-```
-
-**Expected:** `cloned` and `runned` respectively.  
-**Failure:**
-- Missing `git_status.txt` → git clone did not complete. Re-run `deploy-adempiere.yml`.
-- Missing `script_status.txt` → Compose stack did not start. Check container logs below.
-
----
-
 ### Application errors in container logs
 
 ```bash
-docker logs adempiere-ui-gateway --tail 50
+cd /opt/development/adempiere-ui-gateway/docker-compose
+sudo env PWD=$PWD docker compose logs adempiere-zk --tail 50
+sudo env PWD=$PWD docker compose logs postgresql-service --tail 30
 ```
 
 **Expected:** No `ERROR` or `Exception` entries. Application startup messages ending with the server being ready.  

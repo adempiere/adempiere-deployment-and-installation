@@ -101,14 +101,17 @@ Option B is safer for production: the configuration is version-controlled and re
 
 ## Updating ADempiere to a New Version
 
-The deployment role uses status files to avoid re-running on every Ansible run. To force a re-pull and restart, delete the status files first:
+The role always pulls the latest commits from the configured branch (`repo_version`) on every run. If containers are already running, `start-all.sh` is skipped — only the git pull and `override.env` regeneration happen.
+
+To force a full restart (e.g. after a branch change or to pick up a new image):
 
 ```bash
-# On the BackEnd server
-ssh <admin_user>@<backend_ip> -p <custom_sshport> \
-  "rm <install_path>/git_status.txt <install_path>/script_status.txt"
+# Stop containers on the BackEnd server first
+ssh <admin_user>@<backend_ip> -p <custom_sshport>
+cd /opt/development/adempiere-ui-gateway/docker-compose
+sudo env PWD=$PWD bash stop-all.sh
 
-# Then re-run
+# Re-run — containers are stopped so the full start sequence runs
 ansible-playbook deploy-adempiere.yml
 ```
 

@@ -399,10 +399,10 @@ Renders `templates/override.env.j2` into `{{ install_path }}/adempiere-ui-gatewa
 Runs `docker ps` (running containers only, not `docker ps -a`) filtered by `{{ adempiere_container_filter }}`. Registers the result. No state change.
 
 **Tasks 6a — Include start.yml and ensure-healthy.yml (conditional)**  
-Included only if the container is not already running (task 5 returned empty output). This is the idempotency guard: if the stack is already up, it is not restarted. The condition is based on real system state — not a sentinel file — so it self-corrects: if the stack crashed and the container disappeared, the next run will start it again automatically.
+Included only if the container check (task 5) returned empty output — i.e. the stack is not running. This is the idempotency guard: if the stack is already up, it is not restarted. The condition is based on real system state, not a sentinel file, so it self-corrects: if the stack crashed and the containers disappeared, the next run restarts everything automatically. `start.yml` performs the two-phase start sequence (see below). `ensure-healthy.yml` handles the nginx DNS race condition (see below).
 
 **Tasks 6b — Include validate.yml and status.yml (always)**  
-Run unconditionally on every playbook execution. `validate.yml` checks for containers in a bad state (`Exited` with non-zero code, `Restarting`, `Dead`). `status.yml` prints a `docker ps` table for operator confirmation.
+Run unconditionally on every playbook execution. `validate.yml` confirms postgresql and ZK are running using `docker inspect`. `status.yml` prints a `docker ps` table for operator confirmation.
 
 ---
 
@@ -413,13 +413,50 @@ Run unconditionally on every playbook execution. `validate.yml` checks for conta
 
 **Description:**
 
-Runs `start-all.sh` — the shell script shipped inside the `adempiere-ui-gateway` repository that brings up the full Docker Compose stack.
+Implements a two-phase start sequence that solves the first-run PostgreSQL initialization problem.
+
+**Why two phases are needed:**  
+On a fresh server, PostgreSQL runs a full database restore on its very first start (see the PostgreSQL init script note below). This takes several minutes. During this window, dependent containers (especially ZK) try to connect to the DB before it is ready — Docker restarts them automatically. Even after ZK eventually connects, the stack is in a non-clean state: containers have restart counts, log timestamps are inconsistent, and nginx may have exited due to DNS race conditions. Stopping everything after DB initialization and doing a clean second start gives every container a stable first run with a fully initialized, fully restored DB.
+
+**Why the first start includes a full database restore:**  
+The PostgreSQL image is built from a custom `postgres.Dockerfile` that copies `postgresql/initdb.sh` into `/docker-entrypoint-initdb.d/`. PostgreSQL automatically runs every script in that directory when the data directory is empty — exactly once, on first start only. `initdb.sh` creates the `adempiere` user and database, then runs `pg_restore` on the seed backup (`postgresql/postgres_backups/seed.backup`, which is part of the cloned repository). This restore populates the full ADempiere schema and seed data and is the primary reason the first start takes 3–5 minutes. On all subsequent starts the data directory already exists and `initdb.sh` is skipped entirely.
+
+**Phase 1 — first `start-all.sh`**  
+Pulls all Docker images (several minutes on a fresh server) and starts all containers. PostgreSQL runs `initdb.sh` and restores the seed database. Dependent containers fail to connect to the DB and are restarted by Docker during this window — this is expected behavior. After `start-all.sh` exits, `wait.yml` is called: it polls for PostgreSQL running and ZK stable for ≥60 seconds, confirming the restore is complete.
+
+**`stop-all.sh`**  
+Stops and removes all containers cleanly. Also removes `.env` (the Docker Compose environment file). `start-all.sh` regenerates `.env` from `override.env` on next run, so removing it is harmless and ensures a clean environment on the second start.
+
+**Phase 2 — second `start-all.sh`**  
+Starts all containers with the DB already initialized. No dependency failures, no unexpected restarts — all containers come up stably in their correct startup order. `wait.yml` is called again to confirm PostgreSQL and ZK are stable before the play continues.
 
 **Why `environment: PWD:`**  
-`ansible.builtin.command` does not spawn a shell, so standard shell environment variables — including `PWD` — are not set. Docker Compose uses `$PWD` internally to resolve relative paths in volume mounts. When `$PWD` is absent, Docker Compose warns and defaults to a blank string, causing relative paths to resolve incorrectly and containers to fail silently. Setting `PWD` explicitly to the same path as `chdir` restores the expected behaviour.
+`ansible.builtin.command` does not spawn a shell, so standard shell environment variables — including `PWD` — are not set. Docker Compose uses `$PWD` internally to resolve relative paths in volume mounts. When `$PWD` is absent, Docker Compose warns and defaults to a blank string, causing relative paths to resolve incorrectly. Setting `PWD` explicitly to the same path as `chdir` restores expected behaviour. Both `start-all.sh` and `stop-all.sh` tasks carry this setting.
 
 **Why `changed_when: true`**  
-`ansible.builtin.command` cannot detect whether the underlying operation made a change. `start-all.sh` always exits 0 whether or not it started new containers. Marking the task as always-changed is honest — the script was executed and the system state may have changed — and ensures Ansible handlers (if any) are notified.
+`ansible.builtin.command` cannot detect whether the underlying operation made a change. Both scripts always exit 0 whether or not containers were affected. Marking the tasks as always-changed is honest — the scripts were executed and the system state changed — and ensures Ansible handlers (if any) are notified.
+
+---
+
+## roles/deploy-adempiere/tasks/wait.yml
+
+**Name:** `wait.yml`  
+**Location:** `roles/deploy-adempiere/tasks/wait.yml`
+
+**Description:**
+
+Reusable wait logic called twice from `start.yml` via `include_tasks` — once after the first `start-all.sh` and once after the second. Polling uses `docker inspect` on specific named containers rather than `docker ps -a`.
+
+**Why `docker inspect` instead of `docker ps -a`:**  
+`docker ps -a` can hang indefinitely via an Ansible SSH connection when many containers are in `Created` state (not yet started). This was observed as a 40+ minute freeze during testing. `docker inspect <specific-container>` queries Docker for one container by name and does not exhibit this behavior.
+
+**Task 1 — Wait until postgresql is running**  
+Polls `docker inspect -f '{{.State.Status}}' adempiere-ui-gateway.postgresql` until the result is `running`. `failed_when: false` suppresses the non-zero exit code that `docker inspect` returns when the container does not yet exist, allowing the retry loop to keep going rather than failing immediately. `until: pg_state.rc == 0 and pg_state.stdout | trim == "running"` gates on both the container existing and being in the `running` state. Retries: 30 × 10s = up to 5 minutes.
+
+**Task 2 — Wait until ZK has been running stably for ≥60 seconds**  
+Combines two `docker inspect` calls in a shell script: checks `State.Running` is `true`, then calculates uptime from `State.StartedAt` using `date`. Exits 0 only when ZK has been continuously running for at least 60 seconds. This guards against ZK being momentarily up between restarts — a transient `running` state that does not mean the application is ready. Retries: 20 × 10s = up to ~3.5 minutes.
+
+The 60-second threshold is chosen because ZK's startup sequence (DB connection, schema validation, application initialization) takes approximately 30–45 seconds on the target hardware. 60 seconds provides a safe margin.
 
 ---
 
@@ -430,17 +467,28 @@ Runs `start-all.sh` — the shell script shipped inside the `adempiere-ui-gatewa
 
 **Description:**
 
-Confirms the Docker Compose stack is fully operational after `start.yml` runs, and corrects the one known first-run timing failure automatically. Called by `main.yml` via `include_tasks`, always after `start.yml` and never independently.
+Handles the one known first-run timing failure: nginx exiting before upstream containers are registered in Docker's internal DNS. Called by `main.yml` after `start.yml` and `wait.yml` have confirmed the stack is stable.
 
-**Task 1 — Wait until container is created**  
-Polls `docker ps -a` (all states) filtering by `{{ adempiere_container_filter }}` until the container name appears. Uses `retries: 30` with `delay: 10` — up to 5 minutes. This confirms Docker Compose created the container; it does not yet confirm the container is running.
+**The nginx DNS race condition:**  
+The nginx gateway container starts quickly (small Alpine-based image) and immediately resolves the hostnames in its `upstream` blocks (e.g. `adempiere-zk:8080`) using Docker's embedded DNS (`127.0.0.11`). If the upstream containers are not yet registered in Docker DNS at that moment — because they are still starting or haven't joined the network — nginx cannot resolve the hostname and exits with code `1` ("host not found in upstream"). A single restart after the upstream containers are confirmed running resolves the issue permanently.
 
-**Task 2 — Wait until at least one stack container is running**  
-Polls `docker ps` (running containers only, no `-a`) filtering by `{{ adempiere_container_filter }}` until at least one container name appears. Same retry budget. `ignore_errors: true` allows the play to continue even if this times out — `validate.yml` will then catch the bad state and fail with a clear message. Note: individual container names in this stack follow the pattern `adempiere-ui-gateway.<service>`, so `docker inspect adempiere-ui-gateway` would fail (no such exact name exists); the filter-based approach is correct here.
+On the second start (clean restart after DB initialization), all images are already cached and containers start quickly in parallel. By the time `wait.yml` confirms ZK is stable for 60 seconds, nginx typically resolves its upstreams successfully and stays running. The `ensure-healthy.yml` tasks are skipped entirely in this case. They serve as a safety net.
 
-**Tasks 3–5 — Nginx first-run recovery**  
-On the very first deployment, Docker must pull 20+ images in parallel. The nginx gateway container initialises quickly (small image) and tries to resolve upstream hostnames (`adempiere-zk`, etc.) before the heavier containers are registered in Docker's internal DNS — causing nginx to exit with code `1`. On subsequent runs all images are cached and containers start nearly simultaneously, so this issue does not occur.
+**Task 1 — Inspect nginx exit code**  
+Runs `docker inspect -f '{{.State.ExitCode}}' adempiere-ui-gateway.nginx-ui-gateway`. `ignore_errors: true` handles the edge case where the container does not exist yet. `changed_when: false` — read-only inspection.
 
-- Task 3 inspects the nginx exit code.
-- Task 4 restarts nginx if the exit code is `1` — conditioned so it is a no-op on normal runs.
-- Task 5 waits up to 75 seconds for nginx to reach `running` state — also skipped on normal runs.
+**Tasks 2–4 — Conditional nginx restart and wait**  
+All three tasks are guarded by `when: nginx_exit.stdout | trim == "1"`. If nginx exited with code `1`, it is restarted via `docker restart` and then polled with `docker inspect -f '{{.State.Status}}'` until it reaches `running` state (retries: 15 × 5s = up to 75 seconds). On a normal run (exit code `0`) all three tasks are skipped with zero overhead.
+
+---
+
+## roles/deploy-adempiere/tasks/validate.yml
+
+**Name:** `validate.yml`  
+**Location:** `roles/deploy-adempiere/tasks/validate.yml`
+
+**Description:**
+
+Final health check, run unconditionally on every playbook execution (including re-runs where containers were already running). Fails the play immediately if either critical container is not in `running` state.
+
+Uses `docker inspect -f '{{.State.Status}}'` on `adempiere-ui-gateway.postgresql` and `adempiere-ui-gateway.zk` directly — the same `docker inspect` approach as `wait.yml`, avoiding any `docker ps -a` pipeline that could hang. `failed_when` combines a non-zero exit code (container not found) with a non-`running` status string, so both "container missing" and "container in wrong state" are caught as failures.

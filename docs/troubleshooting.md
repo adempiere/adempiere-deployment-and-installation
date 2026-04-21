@@ -60,30 +60,30 @@ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | head -1
 
 ---
 
-## ADempiere container does not start (ensure-healthy.yml times out)
+## ADempiere does not start (wait tasks time out)
 
-**Symptom:** Play fails in the `Wait until container is running` task after 30 retries (5 minutes).
+**Symptom:** Play fails in `Wait until postgresql is running` or `Wait until ZK has been running stably for at least 60 seconds` after exhausting retries.
 
 **Investigate on the BackEnd server:**
 ```bash
-sudo docker ps -a | grep adempiere
-sudo docker logs adempiere-ui-gateway
 cd /opt/development/adempiere-ui-gateway/docker-compose
 sudo env PWD=$PWD docker compose ps
-sudo env PWD=$PWD docker compose logs
+sudo env PWD=$PWD docker compose logs postgresql-service
+sudo env PWD=$PWD docker compose logs adempiere-zk
 ```
 
 > **Note:** Always use `sudo env PWD=$PWD docker compose …` when running Docker Compose commands manually. `sudo` resets environment variables including `PWD`; without it Docker Compose warns and may resolve paths incorrectly.
+
+> **Note:** Avoid `sudo docker ps -a` via Ansible SSH — it can hang when containers are in `Created` state. Use `sudo docker inspect <container-name>` for specific containers instead.
 
 **Common causes:**
 - `override.env` was not generated (missing PostgreSQL credentials in vault)
 - `start-all.sh` failed silently — run it manually to see its full output:
   ```bash
   cd /opt/development/adempiere-ui-gateway/docker-compose
-  sudo bash start-all.sh
+  sudo env PWD=$PWD bash start-all.sh
   ```
 - Not enough memory (ADempiere requires at least 4 GB RAM)
-- Existing Docker volumes conflict with the compose file — `start-all.sh` will prompt interactively; answer `N` to keep existing data
 
 ---
 
@@ -120,13 +120,15 @@ sshd -t
 
 ## Force re-run of ADempiere deployment
 
-If idempotency status files prevent the role from re-running:
-```bash
-# On BackEnd server
-rm /opt/development/git_status.txt
-rm /opt/development/script_status.txt
+The role skips `start-all.sh` if the ADempiere containers are already running. To force a full restart:
 
-# Re-run
+```bash
+# Stop containers on the BackEnd server
+ssh <admin_user>@<backend_ip> -p <custom_sshport>
+cd /opt/development/adempiere-ui-gateway/docker-compose
+sudo env PWD=$PWD bash stop-all.sh
+
+# Re-run the playbook — containers are stopped so start-all.sh will run
 ansible-playbook deploy-adempiere.yml
 ```
 
