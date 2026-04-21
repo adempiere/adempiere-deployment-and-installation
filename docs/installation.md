@@ -192,9 +192,13 @@ Only needed when initializing from a backup — not part of a normal deployment.
 ansible-playbook adempiere-restoredb.yml
 ```
 
-Set `restore_backup_filename` and `restore_local_dir` in `group_vars/all/vars.yml` to point to your backup file on the control node, then run the playbook.
+Set `restore_backup_filename` and `restore_local_dir` in `group_vars/all/vars.yml` to point to your backup file on the control node, then run:
 
-See [operations.md](operations.md) for details.
+```bash
+./restore-db.sh
+```
+
+The script shows a configuration summary and asks for confirmation before executing. See [operations.md](operations.md) for details.
 
 ---
 

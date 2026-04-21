@@ -5,6 +5,32 @@ Each section covers one file: its name, location, and a full description.
 
 ---
 
+## restore-db.sh
+
+**Name:** `restore-db.sh`  
+**Location:** project root
+
+**Description:**
+
+Shell script that restores a PostgreSQL database backup into the ADempiere database on the BackEnd server. Wraps `adempiere-restoredb.yml` with a pre-flight check and a confirmation prompt before executing — important because the restore **overwrites the existing database**.
+
+```bash
+./restore-db.sh
+```
+
+**What it does before running the playbook:**
+
+1. Reads `restore_backup_filename`, `restore_local_dir`, `restore_remote_backup_dir`, `keep_restore_file`, `pg_host`, `pg_port`, `pg_superuser`, `adempiere_db`, `adempiere_owner` directly from `group_vars/all/vars.yml`
+2. Resolves `{{ install_path }}` in `restore_remote_backup_dir` if present
+3. Detects the backup format (`.tar.gz` or `.gz`) and derives the dump filename
+4. Verifies the backup file exists on the control node — aborts immediately if not found
+5. Displays a full configuration summary (all parameters; passwords shown as variable name + source file, not in plaintext)
+6. Requires typing `YES` to proceed
+
+**Log file:** written to `logs/restore-db-YYYYMMDD-HHMMSS.log` (after confirmation, so aborted runs leave no log file).
+
+---
+
 ## deploy-backend.sh
 
 **Name:** `deploy-backend.sh`  

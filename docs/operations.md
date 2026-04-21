@@ -145,8 +145,9 @@ ansible-playbook so-updates.yml
 
 3. Run the restore:
    ```bash
-   ansible-playbook adempiere-restoredb.yml
+   ./restore-db.sh
    ```
+   The script reads the variables from `group_vars/all/vars.yml`, shows a summary of all restore parameters, and asks for confirmation before proceeding. Type `YES` to execute.
 
 What it does:
 - Copies the backup file from the control node to the canonical PostgreSQL backups directory on the backend server
