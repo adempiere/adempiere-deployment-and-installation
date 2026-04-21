@@ -1,12 +1,41 @@
-- name: "INFO: Run start-all.sh"
+- name: "INFO: Run start-all.sh (first run — initializes DB and pulls images)"
   ansible.builtin.debug:
-    msg: "chdir={{ install_path }}/adempiere-ui-gateway/docker-compose | PWD={{ install_path }}/adempiere-ui-gateway/docker-compose"
+    msg: "chdir={{ install_path }}/adempiere-ui-gateway/docker-compose | first run: DB init + image pull"
 
-- name: Run start-all.sh (bring up services)
+- name: Run start-all.sh (first run — initializes DB and pulls images)
   ansible.builtin.command: "./start-all.sh"
   args:
     chdir: "{{ install_path }}/adempiere-ui-gateway/docker-compose"
   environment:
     PWD: "{{ install_path }}/adempiere-ui-gateway/docker-compose"
-  register: start_all
   changed_when: true
+
+- name: Wait for stack to stabilize after first start
+  ansible.builtin.include_tasks: wait.yml
+
+- name: "INFO: Stop stack before clean restart"
+  ansible.builtin.debug:
+    msg: "chdir={{ install_path }}/adempiere-ui-gateway/docker-compose | stopping stack for clean restart"
+
+- name: Stop stack before clean restart
+  ansible.builtin.command: "./stop-all.sh"
+  args:
+    chdir: "{{ install_path }}/adempiere-ui-gateway/docker-compose"
+  environment:
+    PWD: "{{ install_path }}/adempiere-ui-gateway/docker-compose"
+  changed_when: true
+
+- name: "INFO: Run start-all.sh (second run — clean start with initialized DB)"
+  ansible.builtin.debug:
+    msg: "chdir={{ install_path }}/adempiere-ui-gateway/docker-compose | second run: clean start"
+
+- name: Run start-all.sh (second run — clean start with initialized DB)
+  ansible.builtin.command: "./start-all.sh"
+  args:
+    chdir: "{{ install_path }}/adempiere-ui-gateway/docker-compose"
+  environment:
+    PWD: "{{ install_path }}/adempiere-ui-gateway/docker-compose"
+  changed_when: true
+
+- name: Wait for stack to stabilize after second start
+  ansible.builtin.include_tasks: wait.yml

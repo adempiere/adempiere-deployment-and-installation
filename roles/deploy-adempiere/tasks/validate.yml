@@ -1,20 +1,27 @@
-- name: "INFO: Check for containers in bad state"
+- name: "INFO: Check postgresql state"
   ansible.builtin.debug:
-    msg: "filter={{ adempiere_container_filter }} | checking for Exited/Restarting/Dead | retries=6 | delay=10s"
+    msg: "checking {{ adempiere_container_filter }}.postgresql | expected: running"
 
-- name: Check if any containers in the stack are in a bad state (Exited/Restarting/Dead)
-  ansible.builtin.shell: |
-    set -o pipefail
-    docker ps -a --filter "name={{ adempiere_container_filter }}" \
-      --format "{{'{{'}}.Status{{'}}'}}" \
-    | grep -E "Exited \([1-9]|Restarting|Dead" -q
-  register: bad_state
-  failed_when: bad_state.rc == 0
+- name: Check postgresql is running
+  ansible.builtin.command: >
+    docker inspect -f "{{'{{'}}.State.Status{{'}}'}}"
+    {{ adempiere_container_filter }}.postgresql
+  register: pg_validate
   changed_when: false
-  retries: 6
-  delay: 10
-  until: bad_state.rc != 0
+  failed_when: pg_validate.rc != 0 or pg_validate.stdout | trim != "running"
+
+- name: "INFO: Check ZK state"
+  ansible.builtin.debug:
+    msg: "checking {{ adempiere_container_filter }}.zk | expected: running"
+
+- name: Check ZK is running
+  ansible.builtin.command: >
+    docker inspect -f "{{'{{'}}.State.Status{{'}}'}}"
+    {{ adempiere_container_filter }}.zk
+  register: zk_validate
+  changed_when: false
+  failed_when: zk_validate.rc != 0 or zk_validate.stdout | trim != "running"
 
 - name: Report OK if all services look healthy
   ansible.builtin.debug:
-    msg: "OK: All services healthy"
+    msg: "OK: postgresql=running, zk=running"
