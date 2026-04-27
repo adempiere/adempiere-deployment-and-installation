@@ -222,18 +222,18 @@ cp inventories/hosts_template.yml inventories/hosts.yml
 ```yaml
 all:
   children:
-    servers:
-      hosts:
-        backend:
-          ansible_host: <backend_ip>
-        frontend:
-          ansible_host: <frontend_ip>
-    BackEnd:
-      hosts:
-        backend:
-    FrontEnd:
-      hosts:
-        frontend:
+    servers:           # parent group — automatically includes BackEnd and FrontEnd
+      children:
+        BackEnd:
+          hosts:
+            backend1:
+              ansible_host: <backend_ip>
+            # backend2:
+            #   ansible_host: <ip>
+        FrontEnd:
+          hosts:
+            frontend:
+              ansible_host: <frontend_ip>
     ansible_test:
       hosts:
         test:
@@ -244,24 +244,16 @@ all:
 
 | Group | Purpose |
 |---|---|
-| `servers` | Both servers — base setup: OS hardening, Docker, SSH config |
+| `servers` | Parent group — automatically contains all BackEnd and FrontEnd hosts. Used by base-setup playbooks that run on every server. |
 | `BackEnd` | ADempiere application + PostgreSQL server only |
 | `FrontEnd` | Traefik reverse proxy server only |
 | `ansible_test` | Optional local lab VM; not part of `servers` |
 
-**Why `BackEnd` and `FrontEnd` entries look empty:**
-
-```yaml
-    BackEnd:
-      hosts:
-        backend:        ← no ansible_host here
-```
-
-This is not an error. `backend` is already defined with its IP under `servers`. Listing it again under `BackEnd` without repeating `ansible_host` just adds it to a second group — Ansible merges the group memberships and the variables from both. The IP is defined once and used everywhere.
+Each host is defined exactly once — directly under its specific group with its `ansible_host` IP. `servers` inherits all hosts from its children automatically; no host needs to be listed twice.
 
 **Adding a second BackEnd server:**
 
-The template includes a commented-out `backend2` block. To activate it: uncomment the block under `servers`, set the IP, and also uncomment `backend2` under `BackEnd`. No other files need to change — playbooks that target `BackEnd` will automatically include the new host.
+The template includes a commented-out `backend2` block. To activate it: uncomment the block under `BackEnd` and set the IP. No other files need to change — playbooks targeting `BackEnd` automatically include the new host, and Traefik's load balancer list is built dynamically from the `BackEnd` group at runtime.
 
 **Why IPs are here and not in `host_vars/`:**
 

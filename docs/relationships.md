@@ -107,8 +107,8 @@ ansible_test      <test_ip>
 
 - These are the logical server groups defined in `inventories/hosts.yml`.  
 - Every playbook must name one of these groups in its `hosts:` line to know which servers to connect to.  
-- `servers` covers both servers and is used for base setup tasks.  
-- `BackEnd` and `FrontEnd` are subsets used for application-level deployments.  
+- `servers` is a **parent group** whose children are `BackEnd` and `FrontEnd` — it automatically contains all hosts from both. Used by base-setup playbooks that run on every server.  
+- `BackEnd` and `FrontEnd` are child groups used for application-level deployments targeting one server type only.  
 - `ansible_test` is a local VM used to test playbooks safely without touching production.
 
 ---

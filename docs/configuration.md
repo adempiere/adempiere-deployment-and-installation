@@ -18,32 +18,33 @@ vault_password_file = ~/.vault_pass.txt
 ```yaml
 all:
   children:
-    servers:
-      hosts:
-        backend:
-          ansible_host: <backend_ip>
-        frontend:
-          ansible_host: <frontend_ip>
-    BackEnd:
-      hosts:
-        backend:
-    FrontEnd:
-      hosts:
-        frontend:
+    servers:           # parent group — automatically includes BackEnd and FrontEnd
+      children:
+        BackEnd:
+          hosts:
+            backend1:
+              ansible_host: <backend_ip>
+            # backend2:             # uncomment to add a second BackEnd server
+            #   ansible_host: <ip>
+        FrontEnd:
+          hosts:
+            frontend:
+              ansible_host: <frontend_ip>
     ansible_test:
       hosts:
         test:
           ansible_host: <test_ip>
 ```
 
-> IPs live in `inventories/hosts.yml` — gitignored. Copy `inventories/hosts_template.yml` and fill in your values.
+> IPs live in `inventories/hosts.yml` — gitignored. Copy `inventories/hosts_template.yml` and fill in your values.  
+> Each host is defined exactly once. Adding `backend2` under `BackEnd` is all that is needed to scale out — all playbooks pick it up automatically.
 
 **Which playbooks target which groups:**
 
 | Group | Used by |
 |---|---|
-| `servers` | `serversprep.yml`, `so-updates.yml`, `serversconf.yml`, `install-docker.yml`, `deploy-vim.yml` |
-| `BackEnd` | `deploy-adempiere.yml`, `adempiere-restoredb.yml` |
+| `servers` | `serversprep.yml`, `so-updates.yml`, `serversconf.yml`, `serverswap.yml`, `install-docker.yml`, `deploy-vim.yml` |
+| `BackEnd` | `deploy-adempiere.yml`, `deploy-crontab.yml`, `adempiere-restoredb.yml` |
 | `FrontEnd` | `deploy-traefik.yml` |
 | `localhost` | `genkey.yml` |
 
