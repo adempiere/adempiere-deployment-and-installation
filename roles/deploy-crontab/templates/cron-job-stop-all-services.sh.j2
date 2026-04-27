@@ -1,0 +1,16 @@
+#!/bin/bash
+# Stoppt alle Docker Compose Services.
+# Wird vom Crontab aufgerufen: taeglich (Stop-Eintrag in crontab_jobs).
+
+echo "*****************************************************"
+echo "$(date)"
+echo "Beginn vom CRON-Script zum Anhalten von allen Services"
+
+COMPOSE_DIR={{ install_path }}/adempiere-ui-gateway/docker-compose
+
+cd "$COMPOSE_DIR"
+sudo ./stop-all.sh
+
+echo "$(date)"
+echo "Ende vom CRON-Script zum Anhalten von allen Services"
+echo "*****************************************************"

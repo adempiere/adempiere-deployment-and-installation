@@ -1,0 +1,22 @@
+#SPDX-License-Identifier: MIT-0
+---
+# deploy-crontab.yml — Configure crontab entries on the BackEnd server.
+#
+# Deploys start/stop scripts and installs three cron entries for adempiere_username:
+#   @reboot      → start all services after a server boot
+#   23:50 daily  → stop all services (backup window open)
+#   23:55 daily  → restart all services (backup window close)
+#
+# Controlled by crontab_enabled (group_vars/BackEnd.yml, default: true).
+# Set crontab_enabled: false and re-run to remove all three entries.
+#
+# Run standalone: ansible-playbook deploy-crontab.yml
+
+- hosts: BackEnd
+  become: true
+  gather_facts: false
+  vars:
+    ansible_user: "{{ adempiere_username }}"
+    ansible_port: "{{ custom_sshport }}"
+  roles:
+    - deploy-crontab

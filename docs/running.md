@@ -28,6 +28,7 @@ Use `deploy-backend.sh` after resetting the backend server. It deletes the old S
 | `deploy-vim.yml` | servers | Vim + plugins |
 | `deploy-adempiere.yml` | BackEnd | ADempiere container stack |
 | `deploy-traefik.yml` | FrontEnd | Traefik reverse proxy |
+| `deploy-crontab.yml` | BackEnd | Crontab: @reboot start, 23:50 stop, 23:55 restart |
 | `adempiere-restoredb.yml` | BackEnd | PostgreSQL backup restore |
 | `main.yml` | various | Orchestrates: genkey → serversprep → so-updates → serversconf → serverswap → deploy-vim → install-docker |
 | `main-w-traefik.yml` | various | Orchestrates full setup: genkey → serversprep → so-updates → serversconf → install-docker → deploy-traefik → deploy-adempiere |

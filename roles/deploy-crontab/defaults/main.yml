@@ -1,0 +1,23 @@
+#SPDX-License-Identifier: MIT-0
+---
+# Fallback defaults — override in group_vars/BackEnd.yml.
+crontab_enabled: true
+
+# Path shortcuts — avoids repeating the long base path in every task.
+crontab_scripts_dir: "{{ install_path }}/adempiere-ui-gateway/docker-compose/postgresql/postgres_backups/01-Backupscripts"
+crontab_logs_dir:    "{{ install_path }}/adempiere-ui-gateway/docker-compose/postgresql/postgres_backups/02-Logs"
+
+# Crontab entries — add a new list item to schedule an additional job.
+# Fields: name (required), script (required), special_time OR hour+minute.
+crontab_jobs:
+  - name:         "adempiere start on reboot"
+    special_time: reboot
+    script:       "cron-job-start-all-services.sh"
+  - name:   "adempiere daily stop"
+    hour:   "23"
+    minute: "50"
+    script: "cron-job-stop-all-services.sh"
+  - name:   "adempiere daily restart"
+    hour:   "23"
+    minute: "55"
+    script: "cron-job-start-all-services.sh"

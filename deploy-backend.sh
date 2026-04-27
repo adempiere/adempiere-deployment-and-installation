@@ -23,6 +23,7 @@
 #   Step 5  serverswap.yml     — Configure swap file (8 GB, from group_vars/BackEnd.yml).
 #   Step 6  install-docker.yml — Install Docker CE (pinned to 28.x).
 #   Step 7  deploy-adempiere.yml — Deploy the ADempiere container stack.
+#   Step 8  deploy-crontab.yml  — Configure crontab: @reboot start, 23:50 stop, 23:55 restart.
 #
 # NOTE ON --check:
 #   Step 0 (keypair handling) is skipped in check mode — no local files are touched.
@@ -172,6 +173,11 @@ echo ""
 # Step 7 — ADempiere stack
 echo ">>> Step 7: deploy-adempiere.yml — Deploy ADempiere"
 ansible-playbook deploy-adempiere.yml $CHECK
+echo ""
+
+# Step 8 — Crontab
+echo ">>> Step 8: deploy-crontab.yml — Configure crontab"
+ansible-playbook deploy-crontab.yml $CHECK
 echo ""
 
 echo "================================================================"

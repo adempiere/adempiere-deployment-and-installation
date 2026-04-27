@@ -52,7 +52,8 @@ deployment_and_installation/
     ├── deploy-traefik/            # Traefik + socket-proxy deployment
     ├── adempiere-restoredb/       # PostgreSQL dump restore
     ├── deploy-containers/         # Generic container deployment example (nginx)
-    └── serverswap/                # Swap file creation and kernel tuning (vm.swappiness)
+    ├── serverswap/                # Swap file creation and kernel tuning (vm.swappiness)
+    └── deploy-crontab/            # Crontab: @reboot start, 23:50 stop, 23:55 restart
 ```
 
 ---

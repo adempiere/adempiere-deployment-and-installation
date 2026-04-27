@@ -1,0 +1,16 @@
+#!/bin/bash
+# Startet alle Docker Compose Services.
+# Wird vom Crontab aufgerufen: @reboot und taeglich (Restart-Eintrag in crontab_jobs).
+
+echo "*****************************************************"
+echo "$(date)"
+echo "Beginn vom CRON-Script zum Starten von allen Services"
+
+COMPOSE_DIR={{ install_path }}/adempiere-ui-gateway/docker-compose
+
+cd "$COMPOSE_DIR"
+sudo ./start-all.sh
+
+echo "$(date)"
+echo "Ende vom CRON-Script zum Starten von allen Services"
+echo "*****************************************************"

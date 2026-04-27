@@ -6,3 +6,7 @@
 # Swap file size in megabytes (8192 = 8 GB).
 # Sized for PostgreSQL memory spikes on a 12 GB RAM / 512 GB disk server.
 swap_size_mb: 8192
+
+# Crontab — start/stop/restart ADempiere services on schedule.
+# Set to false and re-run deploy-crontab.yml to remove all cron entries.
+crontab_enabled: true

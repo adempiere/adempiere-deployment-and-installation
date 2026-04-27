@@ -1,0 +1,82 @@
+#SPDX-License-Identifier: MIT-0
+##
+## ROLE: deploy-crontab
+## PURPOSE: Deploy start/stop scripts and configure crontab entries on the BackEnd server.
+##
+## CONTEXT:
+##   - Targets BackEnd server only.
+##   - Runs as adempiere_username (become: true for file and cron operations).
+##   - Must run AFTER deploy-adempiere (the docker-compose directory tree must exist).
+##
+## KEY VARIABLES:
+##   crontab_enabled     : true/false — install or remove all crontab entries (group_vars/BackEnd.yml).
+##   crontab_scripts_dir : path to the 01-Backupscripts directory (defaults/main.yml).
+##   crontab_logs_dir    : path to the 02-Logs directory (defaults/main.yml).
+##   crontab_jobs        : list of cron entries — add items here to schedule additional jobs.
+##   install_path        : base directory (group_vars/all/vars.yml, default /opt/development).
+##
+## WHAT THIS ROLE DOES (in order):
+##   1. Reports configuration (host, enabled, paths, job count).
+##   2. Creates crontab_scripts_dir if it does not exist.
+##   3. Creates crontab_logs_dir if it does not exist.
+##   4. Deploys cron-job-start-all-services.sh from template (mode 0755).
+##   5. Deploys cron-job-stop-all-services.sh from template (mode 0755).
+##   6. Installs (or removes) all entries in crontab_jobs for adempiere_username via a single loop.
+##
+---
+
+- name: "INFO: Crontab configuration"
+  ansible.builtin.debug:
+    msg:
+      - "host={{ inventory_hostname }}"
+      - "crontab_enabled={{ crontab_enabled }}"
+      - "scripts={{ crontab_scripts_dir }}/"
+      - "logs={{ crontab_logs_dir }}/"
+      - "jobs={{ crontab_jobs | map(attribute='name') | list }}"
+
+- name: Ensure scripts directory exists
+  ansible.builtin.file:
+    path: "{{ crontab_scripts_dir }}"
+    state: directory
+    owner: "{{ adempiere_username }}"
+    group: "{{ adempiere_username }}"
+    mode: '0755'
+
+- name: Ensure log directory exists
+  ansible.builtin.file:
+    path: "{{ crontab_logs_dir }}"
+    state: directory
+    owner: "{{ adempiere_username }}"
+    group: "{{ adempiere_username }}"
+    mode: '0755'
+
+- name: Deploy start script from template
+  ansible.builtin.template:
+    src: cron-job-start-all-services.sh.j2
+    dest: "{{ crontab_scripts_dir }}/cron-job-start-all-services.sh"
+    owner: "{{ adempiere_username }}"
+    group: "{{ adempiere_username }}"
+    mode: '0755'
+
+- name: Deploy stop script from template
+  ansible.builtin.template:
+    src: cron-job-stop-all-services.sh.j2
+    dest: "{{ crontab_scripts_dir }}/cron-job-stop-all-services.sh"
+    owner: "{{ adempiere_username }}"
+    group: "{{ adempiere_username }}"
+    mode: '0755'
+
+- name: Install crontab entries
+  ansible.builtin.cron:
+    name:         "{{ item.name }}"
+    special_time: "{{ item.special_time | default(omit) }}"
+    hour:         "{{ item.hour         | default(omit) }}"
+    minute:       "{{ item.minute       | default(omit) }}"
+    user:         "{{ adempiere_username }}"
+    job: >-
+      echo "$(date)" >> {{ crontab_logs_dir }}/error_logs.txt;
+      {{ crontab_scripts_dir }}/{{ item.script }}
+      1>> {{ crontab_logs_dir }}/process_logs.txt
+      2>> {{ crontab_logs_dir }}/error_logs.txt
+    state: "{{ 'present' if crontab_enabled | bool else 'absent' }}"
+  loop: "{{ crontab_jobs }}"

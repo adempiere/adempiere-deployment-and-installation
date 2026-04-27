@@ -40,6 +40,35 @@ These variables are set per inventory group and **committed to git** (not secret
 
 ---
 
+## Role: `deploy-crontab` — Defaults
+
+| Variable | Default | Description |
+|---|---|---|
+| `crontab_enabled` | `true` | Install (`true`) or remove (`false`) all entries — overridden by `group_vars/BackEnd.yml` |
+| `crontab_scripts_dir` | `{{ install_path }}/…/01-Backupscripts` | Directory where cron scripts are deployed |
+| `crontab_logs_dir` | `{{ install_path }}/…/02-Logs` | Directory for cron stdout/stderr logs |
+| `crontab_jobs` | see below | List of cron entries; add items here to schedule additional jobs |
+
+**`crontab_jobs` list structure** — each item supports:
+
+| Field | Required | Description |
+|---|---|---|
+| `name` | yes | Unique cron entry name (used by Ansible to identify/update the entry) |
+| `script` | yes | Script filename inside `crontab_scripts_dir` |
+| `special_time` | one of these | `reboot`, `hourly`, `daily`, etc. (omit if using `hour`/`minute`) |
+| `hour` | one of these | Hour field (0–23) |
+| `minute` | one of these | Minute field (0–59) |
+
+**Default jobs:**
+
+| name | when | script |
+|---|---|---|
+| `adempiere start on reboot` | `@reboot` | `cron-job-start-all-services.sh` |
+| `adempiere daily stop` | `23:50` | `cron-job-stop-all-services.sh` |
+| `adempiere daily restart` | `23:55` | `cron-job-start-all-services.sh` |
+
+---
+
 ## Role: `serverswap` — Defaults
 
 | Variable | Default | Description |

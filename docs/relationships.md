@@ -206,6 +206,7 @@ The table shows which components are actively used per role.
 | `adempiere-restoredb` | ✓ | ✓ | ✓ | — | — | ✓ (.sql.gz dumps) |
 | `deploy-containers` | ✓ | ✓ | ✓ | — | — | — |
 | `serverswap` | ✓ | ✓ | — | — | — | — |
+| `deploy-crontab` | ✓ | ✓ | — | ✓ (2) | — | — |
 
 ---
 
