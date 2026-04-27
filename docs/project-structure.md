@@ -41,6 +41,8 @@ deployment_and_installation/
 ├── deploy-vim.yml                 # Vim editor + plugins
 ├── deploy-adempiere.yml           # ADempiere container stack (BackEnd only)
 ├── deploy-traefik.yml             # Traefik reverse proxy (FrontEnd only)
+├── serverswap.yml                 # Swap file + kernel tuning; size from group_vars/BackEnd.yml and FrontEnd.yml
+├── deploy-crontab.yml             # Crontab entries for ADempiere start/stop/restart (BackEnd only)
 ├── adempiere-restoredb.yml        # PostgreSQL backup restore (BackEnd, on demand)
 │
 └── roles/

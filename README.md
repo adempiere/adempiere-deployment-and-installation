@@ -30,21 +30,23 @@ Your local machine  ──── SSH ────►  Public-facing server.
 
 By the end of this automation, the following will be in place:
 
-- Both servers are **hardened**: SSH runs on a custom port, root login is disabled, only key-based authentication is allowed, automatic security updates are enabled.
-- Both servers have **Docker CE** installed.
-- The **BackEnd** server runs the ADempiere ERP container stack (application + PostgreSQL database), cloned from the Systemhaus Westfalia GitHub repository.
-- The **FrontEnd** server runs **Traefik**, a reverse proxy that receives HTTPS traffic from the internet, terminates TLS using a certificate automatically issued by Let's Encrypt via the Cloudflare DNS API, and forwards requests to the BackEnd.
+- Both servers are **hardened**: SSH runs on a custom port, root login is disabled, only key-based authentication is allowed, automatic security updates are enabled.  
+- Both servers have **Docker CE** installed.  
+- The **BackEnd** server runs the ADempiere ERP container stack (application + PostgreSQL database), cloned from the Systemhaus Westfalia GitHub repository.  
+- The **FrontEnd** server runs **Traefik**, a reverse proxy that receives HTTPS traffic from the internet, terminates TLS using a certificate automatically issued by Let's Encrypt via the Cloudflare DNS API, and forwards requests to the BackEnd.  
 - The system is reachable at the domain configured in `group_vars/all/vars.yml`.
 
-Configuration is split across two gitignored files under `group_vars/all/`:
-- `vars.yml` — plain-text deployment values (SSH port, username, key path). Copy from `group_vars/vars_template.yml`.
-- `vault.yml` — AES-256 encrypted secrets (passwords, API tokens). Copy from `group_vars/vault_template.yml` and encrypt with `ansible-vault encrypt`.
+Configuration is split across two gitignored files under `group_vars/all/`:  
+- `vars.yml` — plain-text deployment values (SSH port, username, key path). Copy from `group_vars/vars_template.yml`.  
+- `vault.yml` — AES-256 encrypted secrets (passwords, API tokens). Copy from `group_vars/vault_template.yml` and encrypt with `ansible-vault encrypt`.  
 
 The templates live one level up in `group_vars/` (not inside `all/`) because Ansible auto-loads every `.yml` file it finds in `group_vars/all/` — placing templates there would cause their placeholder values to override your real credentials.
 
-The vault password must be stored in `~/.vault_pass.txt` on the control node; `ansible.cfg` references this file so Ansible decrypts the vault automatically on every run. **Change the vault password before deploying to production.** See [docs/vault.md](docs/vault.md).
+The vault password must be stored in `~/.vault_pass.txt` on the control node; `ansible.cfg` references this file so Ansible decrypts the vault automatically on every run.  
+**Change the vault password before deploying to production.** See [docs/vault.md](docs/vault.md).
 
-You run all commands from your local machine. Ansible connects to the servers over SSH and handles everything remotely.
+You run all commands from your local machine.  
+Ansible connects to the servers over SSH and handles everything remotely.
 
 ---
 

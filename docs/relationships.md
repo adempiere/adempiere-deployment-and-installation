@@ -122,9 +122,11 @@ localhost                      genkey.yml                 --> genkey
 servers (both servers)         serversprep.yml            --> serversprep
                                so-updates.yml             --> so-updates
                                serversconf.yml            --> serversconf
+                               serverswap.yml             --> serverswap
                                install-docker.yml         --> install-docker
                                deploy-vim.yml             --> deploy-vim
 BackEnd  (<backend_ip>)        deploy-adempiere.yml       --> deploy-adempiere
+                               deploy-crontab.yml         --> deploy-crontab
                                adempiere-restoredb.yml    --> adempiere-restoredb
 FrontEnd (<frontend_ip>)       deploy-traefik.yml         --> deploy-traefik
 ansible_test (<test_ip>)       any playbook + --limit ansible_test
@@ -357,8 +359,9 @@ STEP  PLAYBOOK              WHAT IT DOES                                       T
 2     serversprep.yml       Distribute SSH public key to both servers          servers (root)
 3     so-updates.yml        OS dist-upgrade + conditional reboot               servers (root)
 4     serversconf.yml       Server hardening, user creation, SSH config        servers (root)
-5     deploy-vim.yml        Vim + plugins                                      servers (adempiere_username)
-6     install-docker.yml    Docker CE + Compose plugin                         servers (adempiere_username)
+5     serverswap.yml        Swap file + kernel tuning (vm.swappiness=10)       servers (adempiere_username)
+6     deploy-vim.yml        Vim + plugins                                      servers (adempiere_username)
+7     install-docker.yml    Docker CE + Compose plugin                         servers (adempiere_username)
 ```
 
 > After `main.yml`, servers are hardened and Docker-ready. No application is deployed yet.
@@ -417,9 +420,11 @@ servers       serversprep.yml            root        22
               so-updates.yml             root        22
               serversconf.yml            root        22
 ────────────────────────────────────────────────────────────────────
-servers       install-docker.yml         adempiere_username   custom_sshport
+servers       serverswap.yml             adempiere_username   custom_sshport
+              install-docker.yml         adempiere_username   custom_sshport
               deploy-vim.yml             adempiere_username   custom_sshport
 BackEnd       deploy-adempiere.yml       adempiere_username   custom_sshport
+              deploy-crontab.yml         adempiere_username   custom_sshport
               adempiere-restoredb.yml    adempiere_username   custom_sshport
 FrontEnd      deploy-traefik.yml         adempiere_username   custom_sshport
 ```
