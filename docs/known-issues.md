@@ -37,17 +37,16 @@ Other playbooks (`deploy-adempiere.yml`, `install-docker.yml`) set `ansible_port
 
 ---
 
-## 5. Plaintext Cloudflare credentials in `deploy-traefik/vars/main.yml`
+## ~~5. Plaintext Cloudflare credentials in `deploy-traefik/vars/main.yml`~~ ✓ Fixed
 
-See [security.md](security.md) — this is the most urgent item before pushing to GitHub.
+Credentials replaced with placeholders in `roles/deploy-traefik/vars/main.yml`.
+Vault variables `cloudflare_token` and `cloudflare_email` added to `group_vars/vault_template.yml`.
 
 ---
 
-## 6. `cloudflare_tocken` variable name is misspelled
+## ~~6. `cloudflare_tocken` variable name is misspelled~~ ✓ Fixed
 
-**File:** `roles/deploy-traefik/vars/main.yml` and `roles/deploy-traefik/templates/.env.j2`
-**Problem:** `cloudflare_tocken` (typo) instead of `cloudflare_token`.
-**Fix:** Rename consistently in both files when moving the value to the vault.
+Renamed to `cloudflare_token` in `roles/deploy-traefik/vars/main.yml` and `roles/deploy-traefik/templates/.env.j2`.
 
 ---
 

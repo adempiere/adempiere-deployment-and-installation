@@ -18,3 +18,9 @@ root_user_password: 'your-root-password'
 # SSH password and sudo password for the adempiere_username account (post-hardening)
 adempiere_user_password: 'your-admin-user-password'
 adempiere_user_become_pass: 'your-admin-sudo-password'
+
+# Cloudflare credentials (required when deploy_traefik is true)
+# cloudflare_token: API token with DNS:Edit permission — create at https://dash.cloudflare.com/profile/api-tokens
+# cloudflare_email: email address of your Cloudflare account
+cloudflare_token: 'your-cloudflare-api-token'
+cloudflare_email: 'your-cloudflare-account-email'

@@ -1,5 +1,10 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # vars file for roles/deploy-traefik
-cloudflare_tocken: FcJdegHDpCRG1tl_g74NsneYWIghHTvtQegS2u1a # add your token
-cloudflare_email: ppsura008@gmail.com #add your email
+#
+# Move these values to group_vars/all/vault.yml (encrypted) before deploying.
+# Copy group_vars/vault_template.yml, fill in your values, and encrypt:
+#   ansible-vault encrypt group_vars/all/vault.yml
+#
+cloudflare_token: 'your-cloudflare-api-token'   # Cloudflare API token with DNS:Edit permission
+cloudflare_email: 'your-cloudflare-account-email'  # email of the Cloudflare account
