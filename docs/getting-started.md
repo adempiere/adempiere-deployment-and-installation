@@ -16,6 +16,14 @@
 This page gives you the complete command sequence for a first deployment.  
 Each step is covered in detail in [installation.md](installation.md).
 
+> **Before starting — server requirements:**
+>
+> - The server must be **freshly provisioned**: a clean OS install with no previous Ansible run, no leftover containers, users, or configuration. If the server has been used before, reinstall the OS first.
+> - **Only port 22 must be open** at the start — the deployment connects as root on port 22 for the first two steps (`serversprep`, `os-updates`). All other ports should be closed, enforced preferably by an external cloud firewall (e.g. Contabo firewall, AWS Security Group, Hetzner firewall).
+> - **After `serversconf.yml` runs (Step 4)**, the SSH daemon moves from port 22 to `custom_sshport`. You must then update the external firewall: open `custom_sshport`, close port 22. All subsequent steps connect on the new port.
+>   - **If using `deploy-backend.sh`** (which runs all steps in one uninterrupted sequence): open **both** port 22 and `custom_sshport` before starting the script. Close port 22 manually after the script completes.
+>   - **If running playbooks individually**: pause after `serversconf.yml`, switch the external firewall, then continue.
+
 Before running anything, work through:  
 1. [requirements.md](requirements.md) — verify your control node and servers meet all requirements  
 2. [vault.md](vault.md) — set up your vault password file and populate all variables
@@ -76,8 +84,9 @@ This diagram shows the sequence of every step, which server it targets, and the 
 
 1. **`genkey.yml` must run first** — no server is reachable with the project key until the keypair exists locally.
 2. **`serversprep.yml` must run before `serversconf.yml`** — it distributes the public key as `root` on port 22. Once `serversconf.yml` runs, root login is disabled and port 22 is closed permanently. This window cannot be reopened without console access.
-3. **DNS must point to the FrontEnd IP before `deploy-traefik.yml`** — Let's Encrypt validates the domain immediately on first startup. If DNS is not live, the certificate request fails and Traefik cannot start.
-4. **The BackEnd ADempiere stack must be running before Traefik is useful** — Traefik will start successfully regardless, but it cannot route traffic until the BackEnd it points to is up.
+3. **Update the external firewall after `serversconf.yml`** — `serversconf.yml` moves the SSH daemon to `custom_sshport`. If your server sits behind an external cloud firewall, open `custom_sshport` and close port 22 immediately after this step, before running any further playbook. When using `deploy-backend.sh`, open both ports before the script starts and close port 22 after it finishes.
+4. **DNS must point to the FrontEnd IP before `deploy-traefik.yml`** — Let's Encrypt validates the domain immediately on first startup. If DNS is not live, the certificate request fails and Traefik cannot start.
+5. **The BackEnd ADempiere stack must be running before Traefik is useful** — Traefik will start successfully regardless, but it cannot route traffic until the BackEnd it points to is up.
 
 ---
 

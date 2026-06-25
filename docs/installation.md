@@ -44,7 +44,8 @@ Complete the [Pre-Flight Checklist](installation.md#pre-flight-checklist) before
 - [ ] All vault variables populated — see [vault.md](vault.md)
 
 **Target servers:**
-- [ ] Accessible via root SSH on port 22
+- [ ] **Clean OS install** — no previous Ansible run, no leftover containers, users, or configuration. If the server has been used before, reinstall the OS before proceeding.
+- [ ] **Only port 22 open** — accessible via root SSH on port 22. All other ports should be closed, preferably enforced by an external cloud firewall (Contabo firewall, AWS Security Group, Hetzner firewall, etc.).
 - [ ] OS is Ubuntu 22.04 or Debian 12
 - [ ] Internet access: `ping 8.8.8.8` from the server
 
@@ -118,6 +119,10 @@ What it does in order:
 10. Hardens `sshd_config`: no password auth, no root login, max 3 auth tries, modern ciphers only
 
 **After this step:** root SSH login is disabled. All further connections use the `<admin_user>` user on the custom port.
+
+> **External firewall — action required after this step:**  
+> `serversconf.yml` changes the SSH daemon port from 22 to `custom_sshport` on the server itself. If your server is behind an external cloud firewall, you must now **open `custom_sshport` and close port 22** in the firewall settings before running any further playbook — otherwise the next step cannot connect.  
+> Exception: if you ran `deploy-backend.sh` (which executes all steps in one sequence), open both port 22 and `custom_sshport` before starting the script, and close port 22 manually after the script completes.
 
 ---
 
