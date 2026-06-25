@@ -1,5 +1,27 @@
 # Files Explained
 
+## Table of Contents
+
+- [restore-db.sh](#restore-dbsh)
+- [deploy-backend.sh](#deploy-backendsh)
+- [roles/genkey/tasks/main.yml](#rolesgenkeyTasksmainymll)
+- [serversprep.yml](#serversprep.yml)
+- [roles/serversprep/tasks/main.yml](#rolesserverspreptasksmainyml)
+- [inventories/hosts.yml and inventories/hosts_template.yml](#inventorieshostsyml-and-inventorieshosts_templateyml)
+- [so-updates.yml](#so-updatesyml)
+- [serversconf.yml](#serversconfyml)
+- [install-docker.yml](#install-dockeryml)
+- [roles/install-docker/tasks/main.yml](#rolesinstall-dockertasksmainyml)
+- [deploy-adempiere.yml](#deploy-adempiereyml)
+- [roles/deploy-adempiere/tasks/main.yml](#rolesdeploy-adempieretasksmainyml)
+- [roles/deploy-adempiere/tasks/start.yml](#rolesdeploy-adempieretasksstartyml)
+- [roles/deploy-adempiere/tasks/wait.yml](#rolesdeploy-adempieretaskswaitml)
+- [roles/deploy-adempiere/tasks/ensure-healthy.yml](#rolesdeploy-adempieretasksensure-healthyyml)
+- [roles/deploy-adempiere/tasks/validate.yml](#rolesdeploy-adempieretasksvalidateyml)
+- [adempiere-restoredb.yml and roles/adempiere-restoredb/tasks/main.yml](#adempiere-restoredbymll-and-rolesadempiere-restoredbtasksmainyml)
+
+---
+
 Detailed explanations of individual project files — what each one does, why it is structured that way, and what to watch out for.  
 Each section covers one file: its name, location, and a full description.
 

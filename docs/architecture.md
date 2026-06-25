@@ -1,5 +1,59 @@
 # Architecture
 
+## Table of Contents
+
+- [Three-entity model — control node, BackEnd, FrontEnd](#three-entity-model--control-node-backend-frontend)
+- [Server layout](#server-layout)
+- [BackEnd container stack](#backend-container-stack)
+- [BackEnd direct accessibility](#-backend-direct-accessibility)
+- [Multi-customer routing on the FrontEnd](#multi-customer-routing-on-the-frontend)
+- [Request flow](#request-flow-normal-path-through-traefik)
+- [TLS certificate issuance](#tls-certificate-issuance)
+- [Docker network](#docker-network)
+- [Security architecture](#security-architecture)
+
+---
+
+## Three-entity model — control node, BackEnd, FrontEnd
+
+This project involves three distinct entities that must be understood separately:
+
+| Entity | What it is | What runs on it |
+|---|---|---|
+| **Control node** | Your local workstation or laptop | Ansible, this project's scripts — nothing permanent |
+| **BackEnd VPS** | Remote Linux server | ADempiere ERP + PostgreSQL, Docker Compose stack |
+| **FrontEnd VPS** | Remote Linux server | Traefik reverse proxy, socket-proxy |
+
+The control node is the orchestration point. All `ansible-playbook` commands and both entry-point scripts (`deploy-backend.sh`, `restore-db.sh`) are run from here. Ansible connects **outbound** over SSH; the servers never pull configuration.
+
+```mermaid
+flowchart LR
+    CN["🖥 Control Node\n(your local machine)\nAnsible + scripts\nSSH keypair, vault, logs"]
+
+    subgraph BE["BackEnd VPS"]
+        ADE["ADempiere ERP\n(20 containers)"]
+        PG["PostgreSQL"]
+    end
+
+    subgraph FE["FrontEnd VPS"]
+        TR["Traefik\n:80/:443  TLS"]
+        SP["socket-proxy"]
+    end
+
+    Internet(["🌐 Internet"])
+    CF["Cloudflare DNS"]
+    LE["Let's Encrypt"]
+
+    CN -->|"SSH\n(deploy)"| BE
+    CN -->|"SSH\n(deploy)"| FE
+    Internet -->|"HTTPS"| FE
+    TR -->|"HTTP\n(internal)"| ADE
+    TR <-->|"DNS-01"| CF
+    CF <-->|"validation"| LE
+```
+
+---
+
 ## Server Layout
 
 The system is split across two VPS servers, each with a distinct role:
@@ -31,6 +85,38 @@ Internet
 | `<test_ip>` | `ansible_test` | Local lab VM for testing |
 
 > Actual IPs are configured in `inventories/hosts.yml` — gitignored. Use `inventories/hosts_template.yml` as reference.
+
+---
+
+## BackEnd container stack
+
+The BackEnd runs the [adempiere-ui-gateway](https://github.com/Systemhaus-Westfalia/adempiere-ui-gateway) Docker Compose stack. The diagram below shows the key containers and their relationships.
+
+```mermaid
+graph TB
+    subgraph ADempiere["adempiere-ui-gateway (Docker Compose — BackEnd VPS)"]
+        direction TB
+        PG["postgresql\nPostgreSQL database"]
+        ZK["zk\nADempiere ZK UI\n(application server)"]
+        VUE["vue-ui\nVue.js UI"]
+        NGINX["nginx-ui-gateway\ninternal request router"]
+        KC["keycloak-service\nIdentity & access management"]
+        KAFKA["kafka + zookeeper\nMessage queue (POS/async)"]
+        RE["report-engine\nReport generation"]
+        OS["opensearch\nLog aggregation & search"]
+        S3["s3-storage\nObject storage"]
+        SCHED["scheduler-dkron\nJob scheduler"]
+    end
+
+    Browser(["Browser (internet)"]) -->|"HTTP from Traefik"| NGINX
+    NGINX --> ZK
+    NGINX --> VUE
+    ZK --> PG
+    ZK --> KAFKA
+    ZK --> KC
+```
+
+For the runtime behaviour of this stack from the operator's perspective, see [how-it-works.md](how-it-works.md).
 
 ---
 

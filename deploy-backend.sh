@@ -36,11 +36,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
 LOGFILE="$LOG_DIR/deploy-backend-$(date +%Y%m%d-%H%M%S).log"
+# Redirect all stdout and stderr to both the terminal and the log file simultaneously.
 exec > >(tee -a "$LOGFILE") 2>&1
 echo "Output is logged to: $LOGFILE"
 echo ""
 
-# Build a display list of BackEnd hosts and their IPs from the inventory.
+# Build a display list of BackEnd hosts and their IPs.
+# We parse ansible-inventory --list JSON rather than --graph because --graph
+# does not include the ansible_host value needed for the confirmation prompt.
 BACKEND_LIST=$(ansible-inventory --list 2>/dev/null | python3 -c "
 import sys, json
 try:

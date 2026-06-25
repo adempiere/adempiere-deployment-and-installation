@@ -1,5 +1,18 @@
 # Known Issues & Technical Debt
 
+## Table of Contents
+
+- [1. Re-running `serversconf.yml` on an already-hardened server](#1-re-running-serversconfyml-on-an-already-hardened-server)
+- [~~2. Typo in `genkey.yml`~~ ✓ Fixed](#2-typo-in-genkeyyml--connection-loca1--fixed)
+- [3. MOTD deployment is commented out](#3-motd-deployment-is-commented-out)
+- [4. Traefik dashboard has no authentication](#4-traefik-dashboard-has-no-authentication)
+- [~~5. Plaintext Cloudflare credentials~~ ✓ Fixed](#5-plaintext-cloudflare-credentials-in-deploy-traefikvarsmainyml--fixed)
+- [~~6. `cloudflare_tocken` typo~~ ✓ Fixed](#6-cloudflare_tocken-variable-name-is-misspelled--fixed)
+- [7. Admin user password needs to be changed](#7-admin-user-password-needs-to-be-changed-before-production-use)
+- [8. Traefik workflow is partially implemented](#8-traefik-workflow-is-partially-implemented--do-not-enable-without-completing-the-setup)
+
+---
+
 ## 1. Re-running `serversconf.yml` on an already-hardened server
 
 `serversconf.yml` connects as `root` on port 22 — the default for a fresh server. Once the role has hardened a server (port changed to `custom_sshport`, root login disabled, port 22 closed), Ansible can no longer reach it as root on port 22. Pass the current port and the admin user explicitly:

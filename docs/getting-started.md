@@ -1,11 +1,83 @@
 # Getting Started — First Deployment
 
-This page gives you the complete command sequence for a first deployment.   
+## Table of Contents
+
+- [Deployment timeline](#deployment-timeline)
+- [Deployment phases](#deployment-phases)
+- [Phase 0 — One-time setup & pre-flight](#phase-0--one-time-setup--pre-flight)
+- [Phase 1 — BackEnd dry run](#phase-1--backend-dry-run)
+- [Phase 2 — BackEnd real run](#phase-2--backend-real-run)
+- [Phase 3 — FrontEnd dry run](#phase-3--frontend-dry-run)
+- [Phase 4 — FrontEnd real run](#phase-4--frontend-real-run)
+- [Duration reference](#duration-reference)
+
+---
+
+This page gives you the complete command sequence for a first deployment.  
 Each step is covered in detail in [installation.md](installation.md).
 
 Before running anything, work through:  
 1. [requirements.md](requirements.md) — verify your control node and servers meet all requirements  
 2. [vault.md](vault.md) — set up your vault password file and populate all variables
+
+---
+
+## Deployment timeline
+
+This diagram shows the sequence of every step, which server it targets, and the key ordering constraints. Time flows top to bottom.
+
+```
+  CONTROL NODE                  BACKEND VPS               FRONTEND VPS
+  ──────────────────────────    ──────────────────────    ──────────────────────
+  genkey.yml ★                  
+  (generate SSH keypair)        
+        │                       
+        ├─ serversprep.yml ────► copy SSH key        ──►  copy SSH key
+        │  (root, port 22) ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  ─  ─ ─ ─ ─ ─  ┐
+        │                  ⚠ This is the only window root login on port 22 is used   │
+        │                    Root login is disabled permanently after serversconf.    │
+        │                   ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  ─  ─ ─ ─ ─ ─ ┘
+        │
+        ├─ so-updates.yml ─────► OS upgrade + reboot ──►  OS upgrade + reboot
+        │
+        ├─ serversconf.yml ────► harden SSH          ──►  harden SSH
+        │                        create admin user         create admin user
+        │                        SSH port: 22 → custom     SSH port: 22 → custom
+        │
+        ├─ serverswap.yml ─────► configure swap (8 GB)──►  configure swap (4 GB)
+        │
+        ├─ install-docker.yml ─► install Docker CE   ──►  install Docker CE
+        │
+        │                        ⚠ Set DNS → FrontEnd IP before next step
+        │
+        ├─ deploy-adempiere ───► ADempiere + PostgreSQL
+        │  (BackEnd only)        container stack
+        │
+        ├─ deploy-traefik ─────────────────────────────►  Traefik + TLS cert
+        │  (FrontEnd only)                                 Let's Encrypt issues cert
+        │                                                  on first startup
+        ├─ ./restore-db.sh ────► upload + restore DB
+        │  (optional ★★)
+        │
+        └─ deploy-crontab ─────► install cron jobs
+           (BackEnd only)        @reboot start / 23:50 stop / 23:55 restart
+  ──────────────────────────    ──────────────────────    ──────────────────────
+                                 ADempiere reachable at https://<dns_domain>
+```
+
+**★ One-time steps** (only needed once per keypair / server):
+- `genkey.yml` — only if `ssh_keys/adempiere_installation_key` does not exist yet
+- `serversprep.yml`, `so-updates.yml`, `serversconf.yml` — only on a fresh or reset server
+
+**★★ Optional steps:**
+- `restore-db.sh` — only when migrating from an existing database backup
+
+**Non-obvious ordering constraints:**
+
+1. **`genkey.yml` must run first** — no server is reachable with the project key until the keypair exists locally.
+2. **`serversprep.yml` must run before `serversconf.yml`** — it distributes the public key as `root` on port 22. Once `serversconf.yml` runs, root login is disabled and port 22 is closed permanently. This window cannot be reopened without console access.
+3. **DNS must point to the FrontEnd IP before `deploy-traefik.yml`** — Let's Encrypt validates the domain immediately on first startup. If DNS is not live, the certificate request fails and Traefik cannot start.
+4. **The BackEnd ADempiere stack must be running before Traefik is useful** — Traefik will start successfully regardless, but it cannot route traffic until the BackEnd it points to is up.
 
 ---
 

@@ -1,5 +1,16 @@
 # Project Structure
 
+## Table of Contents
+
+- [Repository layout](#repository-layout)
+- [Documentation tree](#documentation-tree)
+- [Role layout](#role-layout)
+- [Key files](#key-files)
+
+---
+
+## Repository layout
+
 ```
 deployment_and_installation/
 │
@@ -58,6 +69,49 @@ deployment_and_installation/
     ├── deploy-containers/         # Generic container deployment example (nginx)
     ├── serverswap/                # Swap file creation and kernel tuning (vm.swappiness)
     └── deploy-crontab/            # Crontab: @reboot start, 23:50 stop, 23:55 restart
+```
+
+---
+
+## Documentation tree
+
+```
+docs/
+│
+├── Getting started
+│   ├── getting-started.md         Deployment timeline + step-by-step walkthrough
+│   ├── installation.md            Installation reference — per-playbook explanation
+│   └── running.md                 Playbook and script command reference
+│
+├── Architecture & design
+│   ├── architecture.md            Network layout, two-server model, design decisions
+│   ├── how-it-works.md            Runtime behaviour: BackEnd stack, FrontEnd Traefik, usage
+│   ├── technologies.md            Ansible, Traefik, Docker — concepts and rationale
+│   ├── relationships.md           Playbooks ↔ roles ↔ inventory group relationships
+│   └── project-structure.md       Repository directory tree and file purposes (this file)
+│
+├── Configuration & secrets
+│   ├── variables.md               Complete variable reference (mandatory/optional/examples)
+│   ├── configuration.md           ansible.cfg, inventory, connection user per playbook
+│   ├── vault.md                   Ansible Vault: create, encrypt, edit, rekey
+│   └── security.md                Security notes and hardening summary
+│
+├── Operations & maintenance
+│   ├── operations.md              Day-2 tasks: update, restart, backup, add customer
+│   ├── testing.md                 Dry-run guide, syntax checks, connectivity tests
+│   ├── troubleshooting.md         Problem resolution by symptom
+│   └── known-issues.md            Known issues and technical debt
+│
+└── Demos & status
+    ├── demo.md                    Real deployment output excerpts (annotated)
+    └── traefik-status.md          Traefik FrontEnd: what works, what is missing, contributions
+```
+
+Root-level documentation files:
+
+```
+README.md          Entry point: overview, control node, quick start, running the deployment
+CONTRIBUTING.md    How to contribute: setup, check mode, branching, PR guide
 ```
 
 ---

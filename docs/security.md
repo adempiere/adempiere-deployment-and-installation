@@ -1,5 +1,15 @@
 # Security Notes
 
+## Table of Contents
+
+- [Cloudflare Credentials](#cloudflare-credentials)
+- [SSH Hardening Summary](#ssh-hardening-summary)
+- [Docker Socket Proxy](#docker-socket-proxy)
+- [Automatic Security Updates](#automatic-security-updates)
+- [Vault Hygiene](#vault-hygiene)
+
+---
+
 ## Cloudflare Credentials
 
 Cloudflare API credentials (`cloudflare_token` and `cloudflare_email`) must never be stored in plain text in committed files.

@@ -1,5 +1,21 @@
 # Installation — Step by Step
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Pre-Flight Checklist](#pre-flight-checklist)
+- [Step 1 — Generate SSH Keypair](#step-1--generate-ssh-keypair)
+- [Step 2 — Distribute SSH Key](#step-2--distribute-ssh-key)
+- [Step 3 — Update the OS](#step-3--update-the-os)
+- [Step 4 — Harden and Configure Servers](#step-4--harden-and-configure-servers)
+- [Step 5 — Install Docker](#step-5--install-docker)
+- [Step 6 — Deploy Vim (optional)](#step-6--deploy-vim-optional)
+- [Step 7 — Deploy ADempiere](#step-7--deploy-adempiere)
+- [Step 8 — Deploy Traefik](#step-8--deploy-traefik)
+- [Step 9 — Restore a Database Backup (when needed)](#step-9--restore-a-database-backup-when-needed)
+
+---
+
 ## Overview
 
 ```

@@ -1,5 +1,13 @@
 # Technologies Used
 
+## Table of Contents
+
+- [Ansible](#ansible)
+- [Traefik](#traefik)
+- [Docker & Docker Compose](#docker--docker-compose)
+
+---
+
 ## Ansible
 
 Ansible is an agentless IT automation tool.  

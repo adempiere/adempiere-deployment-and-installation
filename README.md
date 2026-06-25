@@ -5,6 +5,54 @@
 
 ---
 
+## Table of Contents
+
+- [Control node](#control-node)
+- [The scenario](#the-scenario)
+- [Ansible building blocks](#ansible-building-blocks)
+- [Quick start](#quick-start)
+- [Running the deployment](#running-the-deployment)
+- [Documentation](#documentation)
+- [License](#license)
+
+---
+
+## Control node
+
+The **control node** is your own workstation or laptop — the machine from which you run all commands. It is not a server being deployed. Nothing runs on it permanently once the deployment is complete.
+
+Ansible connects **outbound** from the control node to the servers over SSH and executes tasks remotely. The servers never initiate contact or pull configuration.
+
+All operator-specific files live on the control node: `group_vars/all/vars.yml`, `group_vars/all/vault.yml`, the SSH keypair (`ssh_keys/`), the vault password file (`~/.vault_pass.txt`), and all deployment logs (`logs/`). None of these are committed to git.
+
+The control node requires only Ansible (core 2.14+) and three collections (`community.docker`, `community.postgresql`, `community.crypto`). No Docker, no ADempiere, no server software.
+
+```mermaid
+flowchart TB
+    CN["🖥 Control Node\n(your local machine)\nansible-playbook\ndeploy-backend.sh / restore-db.sh"]
+
+    Internet(["🌐 Internet"])
+
+    subgraph FE["FrontEnd VPS"]
+        TR["Traefik  :80 / :443\nLet's Encrypt TLS"]
+    end
+
+    subgraph BE["BackEnd VPS"]
+        ADE["ADempiere ERP"]
+        PG["PostgreSQL"]
+    end
+
+    CF["Cloudflare DNS"]
+
+    CN -->|"SSH (deploy)"| BE
+    CN -->|"SSH (deploy)"| FE
+    Internet -->|"HTTPS"| FE
+    TR -->|"HTTP (internal)"| ADE
+    TR <-->|"DNS-01 challenge"| CF
+```
+
+---
+
 ## The Scenario
 
 - You are working on your **local machine** (the *control node*).
@@ -140,26 +188,62 @@ For the full walkthrough including dry runs and verification steps, see [docs/ge
 
 ---
 
+## Running the deployment
+
+Two entry-point scripts cover the two most common operations:
+
+| Script | When to use it |
+|---|---|
+| `./deploy-backend.sh` | Full BackEnd provisioning from a clean server. Handles keypair setup, pre-flight checks, and runs all playbooks in order with safety prompts and logging. |
+| `./restore-db.sh` | Upload a PostgreSQL backup from the control node and restore it into a running ADempiere stack. |
+
+```bash
+# Dry run first — shows what would change, no writes
+./deploy-backend.sh --check
+
+# Live run — provisions the BackEnd server
+./deploy-backend.sh
+
+# Database restore (set restore variables in vars.yml first)
+./restore-db.sh
+```
+
+Both scripts write a timestamped log to `logs/` on the control node.
+
+For a step-by-step breakdown of each script, expected output, log location, re-run behaviour after a partial failure, and common failure modes, see [docs/running.md](docs/running.md).  
+For example output from a real successful run, see [docs/demo.md](docs/demo.md).
+
+---
+
 ## Documentation
 
 | Topic | File |
 |---|---|
-| Technologies: Ansible, Traefik, Docker | [docs/technologies.md](docs/technologies.md) |
-| Architecture & network layout | [docs/architecture.md](docs/architecture.md) |
-| System requirements | [docs/requirements.md](docs/requirements.md) |
-| Project structure | [docs/project-structure.md](docs/project-structure.md) |
-| File relationships — playbooks, roles, inventory | [docs/relationships.md](docs/relationships.md) |
-| Vault management | [docs/vault.md](docs/vault.md) |
-| Configuration reference | [docs/configuration.md](docs/configuration.md) |
-| Complete variable reference | [docs/variables.md](docs/variables.md) |
-| Getting started — first deployment | [docs/getting-started.md](docs/getting-started.md) |
+| **Getting started** | |
+| Getting started — deployment timeline + walkthrough | [docs/getting-started.md](docs/getting-started.md) |
 | Installation — step by step | [docs/installation.md](docs/installation.md) |
 | Running the system & playbook reference | [docs/running.md](docs/running.md) |
+| Demo — real deployment output | [docs/demo.md](docs/demo.md) |
+| **Architecture & design** | |
+| Architecture & network layout | [docs/architecture.md](docs/architecture.md) |
+| How it works — runtime behaviour | [docs/how-it-works.md](docs/how-it-works.md) |
+| Technologies: Ansible, Traefik, Docker | [docs/technologies.md](docs/technologies.md) |
+| File relationships — playbooks, roles, inventory | [docs/relationships.md](docs/relationships.md) |
+| Project structure | [docs/project-structure.md](docs/project-structure.md) |
+| **Configuration & secrets** | |
+| Complete variable reference | [docs/variables.md](docs/variables.md) |
+| Configuration reference | [docs/configuration.md](docs/configuration.md) |
+| Vault management | [docs/vault.md](docs/vault.md) |
+| Security notes | [docs/security.md](docs/security.md) |
+| **Operations & maintenance** | |
 | Operations & day-2 tasks | [docs/operations.md](docs/operations.md) |
 | Testing & debugging guide | [docs/testing.md](docs/testing.md) |
 | Debugging & troubleshooting | [docs/troubleshooting.md](docs/troubleshooting.md) |
 | Known issues & technical debt | [docs/known-issues.md](docs/known-issues.md) |
-| Security notes | [docs/security.md](docs/security.md) |
+| **Demos & status** | |
+| Traefik FrontEnd — status & contribution guide | [docs/traefik-status.md](docs/traefik-status.md) |
+| **Reference** | |
+| System requirements | [docs/requirements.md](docs/requirements.md) |
 | Files explained — per-file deep dives | [docs/files-explained.md](docs/files-explained.md) |
 
 ---

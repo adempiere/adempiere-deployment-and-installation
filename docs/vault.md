@@ -1,5 +1,21 @@
 # Vault Management
 
+## Table of Contents
+
+- [What is the vault?](#what-is-the-vault)
+- [Configuration file structure](#configuration-file-structure)
+- [Initial setup](#initial-setup)
+- [Vault file contents](#vault-file-contents-group_varsallvaultyml)
+- [Plain-text variables](#plain-text-variables-group_varsallvarsyml)
+- [Generating a SHA-512 password hash](#generating-a-sha-512-password-hash)
+- [Common vault commands](#common-vault-commands)
+- [How vault variables are used in playbooks](#how-vault-variables-are-used-in-playbooks)
+- [Role vars files](#role-vars-files)
+- [How ansible.cfg connects the vault](#how-ansiblecfg-connects-the-vault)
+- [Changing the vault password](#changing-the-vault-password)
+
+---
+
 ## What is the Vault?
 
 When you push a project to GitHub, everything in the repository becomes visible — including configuration files. Passwords, API tokens, and other sensitive values must never be stored in plain text in the repository.
@@ -157,6 +173,41 @@ cp /tmp/new_pass.txt ~/.vault_pass.txt && rm /tmp/new_pass.txt
 
 ---
 
+## How vault variables are used in playbooks
+
+Vault variables are referenced in playbooks and templates exactly like any other Ansible variable — using the `{{ variable_name }}` syntax. Ansible decrypts the vault file at runtime and injects the values transparently. You never reference "the vault" explicitly in a playbook.
+
+**In a playbook `pre_tasks` block:**
+
+```yaml
+pre_tasks:
+  - name: Assign connection credentials
+    ansible.builtin.set_fact:
+      ansible_user:           "{{ adempiere_username }}"
+      ansible_password:       "{{ adempiere_user_password }}"     # from vault
+      ansible_become_password: "{{ adempiere_user_become_pass }}" # from vault
+      ansible_port:           "{{ custom_sshport }}"
+```
+
+**In a Jinja2 template (`override.env.j2`):**
+
+```jinja2
+POSTGRES_PASSWORD={{ postgres_password }}   {# value from vault, never written in plaintext #}
+```
+
+**In a role task:**
+
+```yaml
+- name: Create PostgreSQL user
+  community.postgresql.postgresql_user:
+    name: adempiere
+    password: "{{ adempiere_password | default(postgres_password) }}"  # vault variable
+```
+
+The vault is transparent: from the role's perspective, vault variables and plain-text variables are identical. The only difference is where they are stored on disk.
+
+---
+
 ## How ansible.cfg connects the vault
 
 ```ini
@@ -165,6 +216,35 @@ vault_password_file = ~/.vault_pass.txt
 ```
 
 Because of this setting, you never need to pass `--vault-password-file` on the command line. All `ansible-playbook` and `ansible-vault` commands pick it up automatically.
+
+---
+
+## Changing the vault password
+
+All three vault-encrypted files must be rekeyed together — they share the same password.
+
+```bash
+# Write the new password to a temporary file
+printf "NewPassword" > /tmp/new_pass.txt
+
+# Rekey all three encrypted files at once
+ansible-vault rekey \
+  --vault-password-file ~/.vault_pass.txt \
+  --new-vault-password-file /tmp/new_pass.txt \
+  group_vars/all/vault.yml \
+  roles/serversconf/vars/main.yml \
+  roles/deploy-adempiere/vars/main.yml
+
+# Update the local vault password file
+cp /tmp/new_pass.txt ~/.vault_pass.txt
+rm /tmp/new_pass.txt
+```
+
+Verify the rekey worked:
+
+```bash
+ansible-vault view group_vars/all/vault.yml   # should print plaintext without error
+```
 
 ---
 

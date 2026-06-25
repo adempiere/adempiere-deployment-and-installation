@@ -1,5 +1,16 @@
 # Configuration Reference
 
+## Table of Contents
+
+- [ansible.cfg](#ansiblecfg)
+- [Inventory (`inventories/hosts.yml`)](#inventory-inventorieshostsyml)
+- [Connection User per Playbook](#connection-user-per-playbook)
+- [Customizing Role Behavior](#customizing-role-behavior)
+- [Changing the Domain](#changing-the-domain)
+- [Changing the ADempiere Branch](#changing-the-adempiere-branch)
+
+---
+
 ## ansible.cfg
 
 ```ini

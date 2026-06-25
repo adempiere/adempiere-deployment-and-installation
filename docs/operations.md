@@ -1,5 +1,19 @@
 # Operations & Day-2 Tasks
 
+## Table of Contents
+
+- [Infrastructure vs. Application](#infrastructure-vs-application)
+- [Adding a Customer](#adding-a-customer)
+- [Adding a New Admin SSH Key](#adding-a-new-admin-ssh-key)
+- [Updating ADempiere to a New Version](#updating-adempiere-to-a-new-version)
+- [Performing an OS Update on Running Servers](#performing-an-os-update-on-running-servers)
+- [Restoring a PostgreSQL Database from Backup](#restoring-a-postgresql-database-from-backup)
+- [Checking Container Status](#checking-container-status)
+- [Traefik Dashboard](#traefik-dashboard)
+- [Redeploying Traefik Configuration](#redeploying-traefik-configuration)
+
+---
+
 ## Infrastructure vs. Application
 
 Traefik and the server configuration are **infrastructure** — set up once, left running. You only touch them again if a server is rebuilt or you change the proxy configuration.

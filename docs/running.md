@@ -1,17 +1,126 @@
 # Running the System
 
-## Provisioning Scripts
+## Table of Contents
 
-| Script | Description |
-|---|---|
-| `deploy-backend.sh` | Full BackEnd provisioning from a clean server reset — runs all steps in order |
+- [deploy-backend.sh — full BackEnd provisioning](#deploy-backendsh--full-backend-provisioning)
+- [restore-db.sh — database restore](#restore-dbsh--database-restore)
+- [Playbook reference](#playbook-reference)
+- [Running a single playbook](#running-a-single-playbook)
+- [Useful flags](#useful-flags)
+- [Checking connectivity](#checking-connectivity)
+- [Inspecting variables and host configuration](#inspecting-variables-and-host-configuration)
+- [Syntax check (no execution)](#syntax-check-no-execution)
+- [List tasks without running](#list-tasks-without-running)
+- [Common scenarios](#common-scenarios)
+
+---
+
+## `deploy-backend.sh` — full BackEnd provisioning
+
+`deploy-backend.sh` is the primary entry point for provisioning a BackEnd server from scratch. It handles everything a manual operator would need to remember: keypair setup, pre-flight checks, stale host key cleanup, interactive confirmation, and all eight playbooks in the correct order.
 
 ```bash
-./deploy-backend.sh           # live run
+./deploy-backend.sh           # live run — makes changes on the server
 ./deploy-backend.sh --check   # dry run — shows what would change, no writes
 ```
 
-Use `deploy-backend.sh` after resetting the backend server. It deletes the old SSH keypair, regenerates it, removes the stale SSH host key from `~/.ssh/known_hosts`, and runs all playbooks in the correct order. See [files-explained.md](files-explained.md) for details.
+### Prerequisites
+
+Before running:
+1. The BackEnd server must be reachable on port 22 with root password authentication.
+2. `~/.vault_pass.txt` must exist with your vault password.
+3. `group_vars/all/vars.yml`, `group_vars/all/vault.yml`, and `inventories/hosts.yml` must be populated.
+
+### What it does — step by step
+
+| Step | Playbook | Description |
+|---|---|---|
+| 0 | *(local)* | Keypair check: if `ssh_keys/adempiere_installation_key` exists, asks whether to delete and regenerate. Default is NO — only regenerate on a full server reset. |
+| 1 | `genkey.yml` | Generate RSA keypair (skipped if Step 0 kept the existing key). |
+| Pre-flight | *(script)* | Check `~/.vault_pass.txt` exists; remove stale known_hosts entries for all BackEnd IPs. |
+| 2 | `serversprep.yml` | Distribute the public key to the BackEnd server (root, port 22). |
+| 3 | `so-updates.yml` | OS dist-upgrade + reboot. Waits up to 5 minutes for server to return. |
+| 4 | `serversconf.yml` | Full server hardening: create admin user, deploy SSH keys, install packages, harden SSH, configure unattended upgrades. After this step, root login is disabled and SSH moves to the custom port. |
+| 5 | `serverswap.yml` | Configure swap file (8 GB from `group_vars/BackEnd.yml`). |
+| 6 | `install-docker.yml` | Install Docker CE 28.x (pinned). |
+| 7 | `deploy-adempiere.yml` | Deploy the ADempiere container stack (clone repo, generate env file, two-run start). |
+| 8 | `deploy-crontab.yml` | Install crontab entries: `@reboot` start, `23:50` stop, `23:55` restart. |
+
+### Logs
+
+Every run writes to `logs/deploy-backend-<YYYYMMDD-HHMMSS>.log` on the control node. Both stdout and stderr are captured.
+
+### Dry run notes
+
+`--check` mode skips Step 0 entirely (no local file changes). The `so-updates.yml` reboot task uses `shell`/`command` and is skipped in check mode, so the dry-run output will not reflect the post-reboot state. For Docker playbooks, `--check` output is approximate.
+
+### Re-running after a partial failure
+
+All playbooks in this script are idempotent — safe to re-run. If the script fails partway through (e.g. at Step 4), fix the underlying issue and run `deploy-backend.sh` again. Steps that already completed will report `ok` (no change needed); only pending steps will make changes.
+
+**Exception:** if the server has already been hardened (Step 4 completed), it is no longer reachable on port 22 as root. Re-running `deploy-backend.sh` from Step 2 will fail. In that case, run the remaining playbooks individually:
+
+```bash
+ansible-playbook serverswap.yml     --limit BackEnd
+ansible-playbook install-docker.yml --limit BackEnd
+ansible-playbook deploy-adempiere.yml
+ansible-playbook deploy-crontab.yml
+```
+
+### Common failure modes
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `Permission denied (publickey)` at Step 2 | Server not reachable as root, or root password is wrong | Verify `root_user_password` in vault; check server is on port 22 |
+| Step 3 (`so-updates`) hangs after reboot | Server takes longer than 5 min to restart | Wait; if server is up, re-run from Step 4 manually |
+| `Connection refused` at Step 4+ | `serversconf` already ran; server is now on custom port | Run remaining playbooks individually (see above) |
+| `FAILED - RETRYING: Wait until ZK ...` | ZK is slow to start (normal on first run) | Wait; it will retry up to 20 times with 10-second delays |
+| Docker playbook fails on `--check` | User/port not set up yet | This is expected in dry-run — run `serversconf.yml` for real first |
+
+For a sample of real successful output, see [docs/demo.md](demo.md).
+
+---
+
+## `restore-db.sh` — database restore
+
+`restore-db.sh` uploads a PostgreSQL backup from the control node and restores it into the running ADempiere stack on the BackEnd. It reads restore parameters from `group_vars/all/vars.yml`.
+
+```bash
+./restore-db.sh
+```
+
+There is no `--check` mode for the restore (the operation is destructive by design).
+
+### Prerequisites
+
+Before running:
+1. The ADempiere container stack must be running on the BackEnd (`deploy-adempiere.yml` completed successfully).
+2. The backup file must exist on the control node at `restore_local_dir/restore_backup_filename`.
+3. `restore_backup_filename` and `restore_local_dir` must be set in `group_vars/all/vars.yml` (uncomment the restore block).
+4. `~/.vault_pass.txt` must exist.
+
+### What it does — step by step
+
+| Step | Description |
+|---|---|
+| Pre-flight | Reads restore variables from `vars.yml`; checks the backup file exists locally; checks `~/.vault_pass.txt`; shows a confirmation summary. |
+| Multi-backend check | If more than one BackEnd host is in the inventory, shows an additional warning — the restore will run on ALL of them. |
+| Upload | Uploads the backup archive from the control node to `restore_remote_backup_dir` on the BackEnd. |
+| Decompress | Decompresses the archive (`.sql.gz` → `.sql` or `.tar.gz` → `.sql`). |
+| Drop & recreate | Drops the `adempiere` database and recreates it with the correct owner. |
+| Restore | Runs `psql` inside the PostgreSQL container via `docker exec` — no TCP port needs to be open. |
+| Post-restore SQL | If `post_restore_sql_enabled: true`, uploads and executes the specified SQL script. |
+| Cleanup | Removes the decompressed dump file. Keeps or removes the archive based on `keep_restore_file`. |
+
+### Logs
+
+Every run writes to `logs/restore-db-<YYYYMMDD-HHMMSS>.log` on the control node.
+
+### Re-running after a failure
+
+If the restore fails after the Drop step, the database is empty. Re-run `restore-db.sh` — it will drop (already empty), recreate, and restore again.
+
+If the failure was a network error during upload, re-run — the upload is idempotent (skips if the archive already exists on the server).
 
 ---
 

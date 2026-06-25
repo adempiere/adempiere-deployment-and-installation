@@ -1,5 +1,20 @@
 # Debugging & Troubleshooting
 
+## Table of Contents
+
+- [Cannot connect after serversconf](#cannot-connect-after-serversconf)
+- [Vault decryption error](#vault-decryption-error)
+- [SSH host key verification fails](#ssh-host-key-verification-fails)
+- [Docker installation fails](#docker-installation-fails)
+- [ADempiere does not start (wait tasks time out)](#adempiere-does-not-start-wait-tasks-time-out)
+- [Traefik cannot obtain a TLS certificate](#traefik-cannot-obtain-a-tls-certificate)
+- [SSH config is broken / locked out](#ssh-config-is-broken--locked-out)
+- [Force re-run of ADempiere deployment](#force-re-run-of-adempiere-deployment)
+- [Validate playbook syntax without running](#validate-playbook-syntax-without-running)
+- [Increase output verbosity](#increase-output-verbosity)
+
+---
+
 ## Cannot connect after serversconf
 
 **Symptom:** `Connection refused` or `Permission denied` after running `serversconf.yml`

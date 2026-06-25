@@ -1,5 +1,18 @@
 # Testing & Debugging Guide
 
+## Table of Contents
+
+- [Quick diagnostic index](#quick-diagnostic-index)
+- [SSH / Network](#ssh--network)
+- [OS Configuration](#os-configuration)
+- [Docker](#docker)
+- [ADempiere — BackEnd](#adempiere--backend)
+- [Traefik — FrontEnd](#traefik--frontend)
+- [Integration](#integration)
+- [End-to-End](#end-to-end)
+
+---
+
 Diagnostic reference — use this when something is not working as expected.  
 Jump to the section that matches your failure.
 

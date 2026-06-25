@@ -40,6 +40,9 @@ BACKEND_COUNT=$(echo "$BACKEND_HOSTS" | grep -c "→" 2>/dev/null || echo "0")
 
 # --- Read variables from vars.yml ---
 
+# Read a plain-text variable from vars.yml using grep+sed rather than ansible-vault
+# or ansible-inventory, because vars.yml is not encrypted and this avoids the overhead
+# of spawning a full Ansible process just to display the confirmation prompt.
 read_var() {
   grep -E "^$1:" "$VARS_FILE" | head -1 | sed "s/^$1:[[:space:]]*//" | tr -d '"'"'"
 }
@@ -58,7 +61,9 @@ POST_SQL_FILENAME=$(read_var post_restore_sql_filename)
 POST_SQL_LOCAL_DIR=$(read_var post_restore_sql_local_dir)
 POST_SQL_REMOTE_DIR=$(read_var post_restore_sql_remote_dir)
 
-# Derive remote dir: resolve {{ install_path }} if present
+# Resolve {{ install_path }} Jinja2 references in the remote dir paths.
+# vars.yml may contain "{{ install_path }}/..." as a literal string; the shell
+# cannot evaluate Jinja2 syntax, so we expand it manually here.
 if echo "$RESTORE_REMOTE_DIR" | grep -q "install_path"; then
   INSTALL_PATH=$(read_var install_path)
   RESTORE_REMOTE_DIR="${INSTALL_PATH}/adempiere-ui-gateway/docker-compose/postgresql/postgres_backups"

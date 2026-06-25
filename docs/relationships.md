@@ -1,5 +1,19 @@
 # File Relationships
 
+## Table of Contents
+
+- [1. Inventory → Playbook → Role](#1-inventory--playbook--role)
+  - [1.1 Example — tracing one full path](#11-example--tracing-one-full-path)
+  - [1.2 Full project map](#12-full-project-map)
+- [2. Role Internal Anatomy](#2-role-internal-anatomy)
+- [3. serversconf — Internal Task Flow](#3-serversconf--internal-task-flow)
+- [4. deploy-adempiere — Internal Task Flow](#4-deploy-adempiere--internal-task-flow)
+- [5. deploy-traefik — Internal Task Flow](#5-deploy-traefik--internal-task-flow)
+- [6. Variable Precedence](#6-variable-precedence)
+- [7. Orchestration Playbook Flows](#7-orchestration-playbook-flows)
+
+---
+
 This document shows the structural relationships between all components of this Ansible project.
 
 ---

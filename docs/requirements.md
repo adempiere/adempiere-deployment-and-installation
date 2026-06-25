@@ -1,5 +1,13 @@
 # System Requirements
 
+## Table of Contents
+
+- [Control Node (your local machine — runs Ansible)](#control-node-your-local-machine--runs-ansible)
+- [Target Servers (VPS)](#target-servers-vps)
+- [External Services](#external-services)
+
+---
+
 ## Control Node (your local machine — runs Ansible)
 
 | Requirement | Details |
