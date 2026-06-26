@@ -299,7 +299,7 @@ The longest step. Clones the ADempiere repository, generates the environment fil
 
 TASK [deploy-adempiere : INFO: Clone or update adempiere-ui-gateway repository] ***
 ok: [backend1] => {
-    "msg": "repo=https://github.com/Systemhaus-Westfalia/adempiere-ui-gateway.git | branch=adempiere-trunk | dest=/opt/development/adempiere-ui-gateway"
+    "msg": "repo=https://github.com/adempiere/adempiere-ui-gateway.git | branch=adempiere-trunk | dest=/opt/development/adempiere-ui-gateway"
 }
 
 TASK [deploy-adempiere : Clone or update adempiere-ui-gateway repository] ******
