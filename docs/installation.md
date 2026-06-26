@@ -171,12 +171,15 @@ What it does:
 3. Generates `<install_path>/adempiere-ui-gateway/docker-compose/override.env` with the server IP and PostgreSQL credentials from the vault
 4. Checks whether the ADempiere containers are already running — if so, skips to validation
 5. If not running, performs a two-phase start:
-   - **First `start-all.sh`** — pulls all images and initializes the PostgreSQL database (~4 minutes on a fresh server). Waits for PostgreSQL to be running and ZK to be stable for ≥60 seconds.
-   - **`stop-all.sh`** — stops all containers cleanly now that the DB is initialized.
-   - **Second `start-all.sh`** — clean start with the pre-initialized DB. All containers come up stably. Waits again for PostgreSQL and ZK stability.
+   - **First [`start-all.sh`](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docker-compose/start-all.sh)** — pulls all images and initializes the PostgreSQL database (~4 minutes on a fresh server). Waits for PostgreSQL to be running and ZK to be stable for ≥60 seconds.
+   - **[`stop-all.sh`](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docker-compose/stop-all.sh)** — stops all containers cleanly now that the DB is initialized.
+   - **Second [`start-all.sh`](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docker-compose/start-all.sh)** — clean start with the pre-initialized DB. All containers come up stably. Waits again for PostgreSQL and ZK stability.
    - Checks the nginx exit code and restarts it if it exited on first run (nginx resolves upstream hostnames at startup; if ZK is not yet registered in Docker DNS, nginx exits with code 1 and needs one restart).
-6. Validates that PostgreSQL and ZK are running
-7. Prints the container status table
+6. Runs [`health-check.sh`](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docker-compose/health-check.sh) — verifies every container and HTTP endpoint; fails the play immediately if anything is unhealthy
+7. Validates that PostgreSQL and ZK are running
+8. Prints the container status table
+
+See [adempiere-ui-gateway services](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docs/services.md) for a description of each container in the stack.
 
 The two-phase start is necessary because of what happens inside the PostgreSQL container on first run: the image includes a custom `initdb.sh` script (in `/docker-entrypoint-initdb.d/`) that PostgreSQL runs automatically when the data directory is empty. It creates the `adempiere` user and database, then runs a full `pg_restore` from the seed backup included in the repository (`postgresql/postgres_backups/seed.backup`). This restore takes 3–5 minutes, during which ZK cannot connect to the DB and is restarted by Docker. The stop/start cycle clears this state and gives every container a clean first start against the fully restored database. On all subsequent starts the data directory already exists and `initdb.sh` is skipped entirely.
 

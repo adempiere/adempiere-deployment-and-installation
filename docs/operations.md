@@ -117,7 +117,7 @@ Option B is safer for production: the configuration is version-controlled and re
 
 ## Updating ADempiere to a New Version
 
-The role always pulls the latest commits from the configured branch (`repo_version`) on every run. If containers are already running, `start-all.sh` is skipped — only the git pull and `override.env` regeneration happen. When the start sequence does run, `health-check.sh` is called automatically at the end; the play fails if any container or endpoint is unhealthy.
+The role always pulls the latest commits from the configured branch (`repo_version`) on every run. If containers are already running, [`start-all.sh`](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docker-compose/start-all.sh) is skipped — only the git pull and `override.env` regeneration happen. When the start sequence does run, [`health-check.sh`](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docker-compose/health-check.sh) is called automatically at the end; the play fails if any container or endpoint is unhealthy.
 
 To force a full restart (e.g. after a branch change or to pick up a new image):
 
@@ -149,6 +149,8 @@ ansible-playbook os-updates.yml
 ---
 
 ## Restoring a PostgreSQL Database from Backup
+
+See also: [adempiere-ui-gateway backup & restore documentation](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docs/backup-restore.md)
 
 1. Download the backup file to any directory on the control node.
 
@@ -193,8 +195,16 @@ The script is copied from the control node to `post_restore_sql_remote_dir` on t
 ## Checking Container Status
 
 **BackEnd (ADempiere):**
+
+For a comprehensive health report run [`health-check.sh`](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docker-compose/health-check.sh) — it checks every container state and HTTP endpoint:
 ```bash
 ssh <admin_user>@<backend_ip> -p <custom_sshport>
+cd <install_path>/adempiere-ui-gateway/docker-compose
+sudo bash health-check.sh
+```
+
+Or check individual container status:
+```bash
 docker ps
 docker logs adempiere-ui-gateway
 cd <install_path>/adempiere-ui-gateway/docker-compose && docker compose ps

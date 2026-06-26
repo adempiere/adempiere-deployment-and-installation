@@ -56,7 +56,7 @@ The `deploy-adempiere` role:
 1. Creates the installation directory (`install_path`, default `/opt/development`)  
 2. Clones or updates the `adempiere-ui-gateway` repository at the configured branch  
 3. Renders the `override.env` file from `roles/deploy-adempiere/templates/override.env.j2` — this injects runtime values (PostgreSQL password, paths) into the Docker Compose environment  
-4. Starts the stack with `start-all.sh` (first run initialises the database and pulls all images), waits for health checks, and does a clean restart  
+4. Starts the stack with [`start-all.sh`](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docker-compose/start-all.sh) (first run initialises the database and pulls all images), waits for health checks, and does a clean restart  
 
 ### Container stack (representative subset)
 
@@ -163,6 +163,8 @@ sudo docker inspect --format='{{.State.Health.Status}}' adempiere-ui-gateway.pos
 ```
 
 ### Restart the stack manually
+
+See [`stop-all.sh`](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docker-compose/stop-all.sh) and [`start-all.sh`](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docker-compose/start-all.sh) in adempiere-ui-gateway.
 
 ```bash
 cd /opt/development/adempiere-ui-gateway/docker-compose

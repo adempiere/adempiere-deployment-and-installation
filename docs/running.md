@@ -43,7 +43,7 @@ Before running:
 | 5 | `serversconf.yml` | Full server hardening: create admin user, deploy SSH keys, install packages, harden SSH, configure unattended upgrades. After this step, root login is disabled and SSH moves to the custom port. |
 | 6 | `serverswap.yml` | Configure swap file (8 GB from `group_vars/BackEnd.yml`). |
 | 7 | `install-docker.yml` | Install Docker CE 28.x (pinned). |
-| 8 | `deploy-adempiere.yml` | Deploy the ADempiere container stack (clone repo, generate env file, two-run start with profile `adempiere_profile`, healthcheck at the end). |
+| 8 | `deploy-adempiere.yml` | Deploy the [adempiere-ui-gateway](https://github.com/adempiere/adempiere-ui-gateway) container stack (clone repo, generate env file, two-run start via [`start-all.sh`](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docker-compose/start-all.sh) with [profile](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docs/profiles.md) `adempiere_profile`, [`health-check.sh`](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docker-compose/health-check.sh) at the end). |
 | 9 | `deploy-crontab.yml` | Install crontab entries: `@reboot` start, `23:50` stop, `23:55` restart. |
 
 ### Logs
@@ -87,7 +87,7 @@ For a sample of real successful output, see [docs/demo.md](demo.md).
 
 ## `restore-db.sh` — database restore
 
-`restore-db.sh` uploads a PostgreSQL backup from the control node and restores it into the running ADempiere stack on the BackEnd. It reads restore parameters from `group_vars/all/vars.yml`.
+`restore-db.sh` uploads a PostgreSQL backup from the control node and restores it into the running ADempiere stack on the BackEnd. It reads restore parameters from `group_vars/all/vars.yml`. See also: [adempiere-ui-gateway backup & restore documentation](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docs/backup-restore.md).
 
 ```bash
 ./restore-db.sh

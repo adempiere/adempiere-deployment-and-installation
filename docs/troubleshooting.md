@@ -93,7 +93,7 @@ sudo env PWD=$PWD docker compose logs adempiere-zk
 
 **Common causes:**
 - `override.env` was not generated (missing PostgreSQL credentials in vault)
-- `start-all.sh` failed silently — run it manually to see its full output:
+- [`start-all.sh`](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docker-compose/start-all.sh) failed silently — run it manually to see its full output:
   ```bash
   cd /opt/development/adempiere-ui-gateway/docker-compose
   sudo env PWD=$PWD bash start-all.sh
@@ -135,7 +135,7 @@ sshd -t
 
 ## Force re-run of ADempiere deployment
 
-The role skips `start-all.sh` if the ADempiere containers are already running. To force a full restart:
+The role skips [`start-all.sh`](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docker-compose/start-all.sh) if the ADempiere containers are already running. To force a full restart:
 
 ```bash
 # Stop containers on the BackEnd server

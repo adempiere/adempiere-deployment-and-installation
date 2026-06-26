@@ -114,7 +114,7 @@ Ansible connects to the servers over SSH and handles everything remotely.
 
 - **Database restore in two steps** — download a backup to your workstation, set two variables in `vars.yml`, and run `./restore-db.sh`. The script displays all restore parameters and asks for explicit confirmation before touching anything.
 
-- **Automatic health verification** — after every fresh deployment, `health-check.sh` runs automatically and checks every container and HTTP endpoint. The play fails immediately if anything is unhealthy, so a broken deployment is never silently accepted.
+- **Automatic health verification** — after every fresh deployment, [`health-check.sh`](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docker-compose/health-check.sh) runs automatically and checks every container and HTTP endpoint. The play fails immediately if anything is unhealthy, so a broken deployment is never silently accepted.
 
 - **Dry-run before you commit** — `./deploy-backend.sh --check` shows exactly what would change on the server without making a single write.
 
@@ -123,6 +123,8 @@ Ansible connects to the servers over SSH and handles everything remotely.
 - **Repeatable across environments** — the same playbooks deploy to development, staging, and production. Per-environment differences live entirely in gitignored `vars.yml` and `vault.yml`; nothing environment-specific is ever committed.
 
 - **Transparent by design** — both entry-point scripts display a full configuration summary — target server, all settings, vault variable status — before any confirmation prompt, so the operator knows exactly what will run before typing `YES`.
+
+- **Seamless server resets** — before connecting to any BackEnd server, `deploy-backend.sh` automatically removes the old SSH host fingerprint from `~/.ssh/known_hosts`. Reinstalling a server no longer requires a manual `ssh-keygen -R` step — the script handles it silently every time.
 
 - **All configuration in version control** — deployment logic, role defaults, and templates are committed; secrets are AES-256 encrypted in `vault.yml`. The exact deployment is fully reproducible at any point in time.
 
@@ -252,9 +254,9 @@ After the initial deployment, the same Ansible playbooks handle all ongoing admi
 |---|---|
 | Apply OS security updates (reboots automatically if needed) | `ansible-playbook os-updates.yml` |
 | Update ADempiere to the latest commit on the configured branch | `ansible-playbook deploy-adempiere.yml` |
-| Force a full ADempiere container restart (stop all first, then re-run) | SSH to server → `stop-all.sh`, then `ansible-playbook deploy-adempiere.yml` |
+| Force a full ADempiere container restart (stop all first, then re-run) | SSH to server → [`stop-all.sh`](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docker-compose/stop-all.sh), then `ansible-playbook deploy-adempiere.yml` |
 | Add or rotate an admin SSH key | Add `.pub` to `roles/serversconf/files/public_keys/present/admin/`, then `ansible-playbook serversconf.yml --start-at-task "Add ADMIN ssh-keys"` |
-| Check container health | SSH to server → `bash health-check.sh` |
+| Check container health | SSH to server → [`health-check.sh`](https://github.com/adempiere/adempiere-ui-gateway/blob/main/docker-compose/health-check.sh) |
 
 For the full operations reference, see [docs/operations.md](docs/operations.md).
 
