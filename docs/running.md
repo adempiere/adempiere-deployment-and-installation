@@ -71,6 +71,16 @@ ansible-playbook deploy-adempiere.yml
 ansible-playbook deploy-crontab.yml
 ```
 
+**Logging when running playbooks individually:**  
+`deploy-backend.sh` creates a timestamped log automatically. Running `ansible-playbook` directly only prints to the console — no log file is created. To preserve the output, append to the existing log or start a new one:
+
+```bash
+# Append to the existing deploy-backend run log
+ansible-playbook install-docker.yml --limit BackEnd 2>&1 | tee -a logs/deploy-backend-<YYYYMMDD-HHMMSS>.log
+ansible-playbook deploy-adempiere.yml               2>&1 | tee -a logs/deploy-backend-<YYYYMMDD-HHMMSS>.log
+ansible-playbook deploy-crontab.yml                 2>&1 | tee -a logs/deploy-backend-<YYYYMMDD-HHMMSS>.log
+```
+
 ### Common failure modes
 
 | Symptom | Likely cause | Fix |
@@ -80,6 +90,7 @@ ansible-playbook deploy-crontab.yml
 | `Connection refused` at Step 5+ | `serversconf` already ran; server is now on custom port | Run remaining playbooks individually (see above) |
 | `FAILED - RETRYING: Wait until ZK ...` | ZK is slow to start (normal on first run) | Wait; it will retry up to 20 times with 10-second delays |
 | Docker playbook fails on `--check` | User/port not set up yet | This is expected in dry-run — run `serversconf.yml` for real first |
+| `SSL handshake timed out` downloading Docker GPG key | Transient network error on the target server | Re-run `ansible-playbook install-docker.yml --limit BackEnd` |
 
 For a sample of real successful output, see [docs/demo.md](demo.md).
 
