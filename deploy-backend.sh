@@ -41,6 +41,46 @@ exec > >(tee -a "$LOGFILE") 2>&1
 echo "Output is logged to: $LOGFILE"
 echo ""
 
+# Pre-flight: vault password file must exist (ansible.cfg references ~/.vault_pass.txt)
+if [[ ! -f "$HOME/.vault_pass.txt" ]]; then
+  echo "ERROR: ~/.vault_pass.txt not found."
+  echo "       Create it with your vault password before running this script."
+  exit 1
+fi
+
+# --- Read configuration values for the summary display ---
+
+VARS_FILE="$SCRIPT_DIR/group_vars/all/vars.yml"
+VAULT_FILE="$SCRIPT_DIR/group_vars/all/vault.yml"
+BACKEND_YML="$SCRIPT_DIR/group_vars/BackEnd.yml"
+
+read_var() {
+  grep -E "^$1:" "$VARS_FILE" | head -1 | sed "s/^$1:[[:space:]]*//" | tr -d '"'"'"
+}
+read_backend_var() {
+  grep -E "^$1:" "$BACKEND_YML" | head -1 | sed "s/^$1:[[:space:]]*//" | tr -d '"'"'"
+}
+
+ADEMPIERE_USERNAME=$(read_var adempiere_username)
+CUSTOM_SSHPORT=$(read_var custom_sshport)
+TIMEZONE=$(read_var timezone)
+SERVER_LOCALE=$(read_var server_locale)
+REPO_URL=$(read_var repo_url)
+REPO_VERSION=$(read_var repo_version)
+INSTALL_PATH=$(read_var install_path)
+SWAP_SIZE=$(read_backend_var swap_size_mb)
+
+VAULT_CONTENT=$(ansible-vault view --vault-password-file "$HOME/.vault_pass.txt" "$VAULT_FILE" 2>/dev/null || echo "")
+vault_status() {
+  if [[ -z "$VAULT_CONTENT" ]]; then
+    echo "*** vault not readable ***"
+  elif echo "$VAULT_CONTENT" | grep -q "^$1:"; then
+    echo "set"
+  else
+    echo "*** MISSING ***"
+  fi
+}
+
 # Build a display list of BackEnd hosts and their IPs.
 # We parse ansible-inventory --list JSON rather than --graph because --graph
 # does not include the ansible_host value needed for the confirmation prompt.
@@ -59,37 +99,50 @@ except Exception:
 CHECK=""
 if [[ "${1:-}" == "--check" ]]; then
   CHECK="--check"
-  echo ""
-  echo "================================================================"
-  echo "  DRY RUN mode (--check) — no changes will be made"
-  echo "================================================================"
-  echo ""
+fi
+
+# --- Configuration summary (shown in both dry-run and real-run mode) ---
+
+echo ""
+echo "================================================================"
+if [[ -n "$CHECK" ]]; then
+  echo "  BackEnd Deployment — DRY RUN (--check) — no changes will be made"
 else
-  echo ""
-  echo "================================================================"
-  echo "  LIVE RUN — changes will be made on the backend server"
-  echo ""
-  echo "  Target BackEnd server(s):"
-  echo "$BACKEND_LIST"
-  echo "  Prerequisites:"
-  echo "    - All servers above are reachable on port 22 as root with password auth"
-  echo "    - ~/.vault_pass.txt exists (used automatically via ansible.cfg)"
-  echo ""
-  read -rp "  Type YES to continue: " confirm
+  echo "  BackEnd Deployment — LIVE RUN — changes will be made on the server"
+fi
+echo "================================================================"
+echo ""
+echo "  Target BackEnd server(s):"
+echo "$BACKEND_LIST"
+echo ""
+echo "  Server configuration  (group_vars/all/vars.yml + group_vars/BackEnd.yml):"
+printf "    %-30s %s\n" "Admin username:"           "$ADEMPIERE_USERNAME"
+printf "    %-30s %s\n" "SSH port (after hardening):" "$CUSTOM_SSHPORT"
+printf "    %-30s %s\n" "Timezone:"                 "$TIMEZONE"
+printf "    %-30s %s\n" "Locale:"                   "$SERVER_LOCALE"
+printf "    %-30s %s\n" "Swap:"                     "${SWAP_SIZE} MB"
+echo ""
+echo "  Application  (group_vars/all/vars.yml):"
+printf "    %-30s %s\n" "Repository URL:"           "$REPO_URL"
+printf "    %-30s %s\n" "Branch:"                   "$REPO_VERSION"
+printf "    %-30s %s\n" "Install path:"             "$INSTALL_PATH"
+echo ""
+echo "  Secrets  (group_vars/all/vault.yml — values not shown):"
+printf "    %-30s %s\n" "root_user_password:"       "$(vault_status root_user_password)"
+printf "    %-30s %s\n" "adempiere_user_password:"  "$(vault_status adempiere_user_password)"
+printf "    %-30s %s\n" "adempiere_user_become_pass:" "$(vault_status adempiere_user_become_pass)"
+printf "    %-30s %s\n" "postgres_password:"        "$(vault_status postgres_password)"
+echo ""
+
+if [[ -z "$CHECK" ]]; then
+  read -rp "  Type YES to proceed with the deployment: " confirm
   if [[ "$confirm" != "YES" ]]; then
     echo "  Aborted."
     exit 1
   fi
-  echo "================================================================"
-  echo ""
 fi
-
-# Pre-flight: vault password file must exist (ansible.cfg references ~/.vault_pass.txt)
-if [[ ! -f "$HOME/.vault_pass.txt" ]]; then
-  echo "ERROR: ~/.vault_pass.txt not found."
-  echo "       Create it with your vault password before running this script."
-  exit 1
-fi
+echo "================================================================"
+echo ""
 
 # Pre-flight: remove stale host keys for all BackEnd servers from known_hosts.
 # Required after a server reset — the host presents a new key and SSH would refuse to connect.
