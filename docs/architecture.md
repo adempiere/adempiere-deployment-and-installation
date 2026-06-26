@@ -90,7 +90,7 @@ Internet
 
 ## BackEnd container stack
 
-The BackEnd runs the [adempiere-ui-gateway](https://github.com/Systemhaus-Westfalia/adempiere-ui-gateway) Docker Compose stack. The diagram below shows the key containers and their relationships.
+The BackEnd runs the [adempiere-ui-gateway](https://github.com/adempiere/adempiere-ui-gateway) Docker Compose stack. The diagram below shows the key containers and their relationships.
 
 ```mermaid
 graph TB

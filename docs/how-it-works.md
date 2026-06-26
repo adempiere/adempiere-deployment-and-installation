@@ -48,7 +48,7 @@ Control node (your laptop/workstation)
 
 ## BackEnd internals — the ADempiere container stack
 
-The BackEnd VPS runs the [adempiere-ui-gateway](https://github.com/Systemhaus-Westfalia/adempiere-ui-gateway) Docker Compose stack. All containers are managed by Docker Compose and share a single internal network.
+The BackEnd VPS runs the [adempiere-ui-gateway](https://github.com/adempiere/adempiere-ui-gateway) Docker Compose stack. All containers are managed by Docker Compose and share a single internal network.
 
 ### What gets deployed
 
