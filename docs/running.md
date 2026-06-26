@@ -19,6 +19,8 @@
 
 `deploy-backend.sh` is the primary entry point for provisioning a BackEnd server from scratch. It handles everything a manual operator would need to remember: keypair setup, pre-flight checks, stale host key cleanup, interactive confirmation, and all eight playbooks in the correct order.
 
+Before asking for confirmation, the script displays a full configuration summary: target servers, admin username, SSH port, timezone, locale, swap size, repository URL and branch, install path, crontab status and schedule, and vault variable status (set / MISSING — values never shown). Review this carefully before typing `YES`.
+
 ```bash
 ./deploy-backend.sh           # live run — makes changes on the server
 ./deploy-backend.sh --check   # dry run — shows what would change, no writes

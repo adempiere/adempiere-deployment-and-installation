@@ -69,6 +69,20 @@ REPO_URL=$(read_var repo_url)
 REPO_VERSION=$(read_var repo_version)
 INSTALL_PATH=$(read_var install_path)
 SWAP_SIZE=$(read_backend_var swap_size_mb)
+CRONTAB_ENABLED=$(read_backend_var crontab_enabled)
+
+CRONTAB_DEFAULTS_FILE="$SCRIPT_DIR/roles/deploy-crontab/defaults/main.yml"
+CRONTAB_JOBS=$(python3 -c "
+import yaml, sys
+try:
+    with open('$CRONTAB_DEFAULTS_FILE') as f:
+        data = yaml.safe_load(f)
+    for job in data.get('crontab_jobs', []):
+        t = job.get('special_time') or '{}:{}'.format(job.get('hour','?'), job.get('minute','?'))
+        print('      {:<14} -> {}'.format(t, job.get('script','?')))
+except Exception as e:
+    print('      (could not parse crontab_jobs: {})'.format(e))
+" 2>/dev/null || echo "      (could not read crontab defaults)")
 
 VAULT_CONTENT=$(ansible-vault view --vault-password-file "$HOME/.vault_pass.txt" "$VAULT_FILE" 2>/dev/null || echo "")
 vault_status() {
@@ -126,6 +140,13 @@ echo "  Application  (group_vars/all/vars.yml):"
 printf "    %-30s %s\n" "Repository URL:"           "$REPO_URL"
 printf "    %-30s %s\n" "Branch:"                   "$REPO_VERSION"
 printf "    %-30s %s\n" "Install path:"             "$INSTALL_PATH"
+echo ""
+echo "  Crontab  (group_vars/BackEnd.yml + role defaults):"
+printf "    %-30s %s\n" "Enabled:"                  "$CRONTAB_ENABLED"
+if [[ "$CRONTAB_ENABLED" == "true" ]]; then
+  echo "    Schedule:"
+  echo "$CRONTAB_JOBS"
+fi
 echo ""
 echo "  Secrets  (group_vars/all/vault.yml — values not shown):"
 printf "    %-30s %s\n" "root_user_password:"       "$(vault_status root_user_password)"
