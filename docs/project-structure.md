@@ -40,6 +40,13 @@ deployment_and_installation/
 │   ├── deploy-backend-<timestamp>.log # Written by deploy-backend.sh (stdout + stderr)
 │   └── restore-db-<timestamp>.log     # Written by restore-db.sh (stdout + stderr)
 │
+│                                  # --- Shell scripts ---
+│                                  # Run before an operation script to verify configuration without
+│                                  # making any changes.
+├── check-config.sh                # Pre-flight config check for deploy-backend.sh or restore-db.sh
+├── deploy-backend.sh              # Full BackEnd provisioning from scratch (runs all playbooks in order)
+├── restore-db.sh                  # PostgreSQL database restore (wraps adempiere-restoredb.yml)
+│
 │                                  # --- Orchestration playbooks ---
 │                                  # Chain individual playbooks into full deployment sequences.
 │                                  # Run one of these to execute multiple steps with a single command.
@@ -152,6 +159,9 @@ roles/<role-name>/
 
 | File | Purpose |
 |---|---|
+| `check-config.sh` | Pre-flight configuration check for `deploy-backend.sh` or `restore-db.sh` — reads and validates all required variables without executing anything |
+| `deploy-backend.sh` | Full BackEnd provisioning from scratch — orchestrates all deployment playbooks in order |
+| `restore-db.sh` | PostgreSQL database restore — wraps `adempiere-restoredb.yml` with pre-flight checks and confirmation |
 | `inventories/hosts.yml` | Inventory with real server IPs — gitignored; use `hosts_template.yml` as reference |
 | `group_vars/all/vars.yml` | Non-secret config values (username, SSH port, key name) — gitignored; copy from `group_vars/vars_template.yml` |
 | `group_vars/all/vault.yml` | Vault-encrypted secrets (passwords) — gitignored; copy from `group_vars/vault_template.yml` |

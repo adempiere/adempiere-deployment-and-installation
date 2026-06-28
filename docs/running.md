@@ -2,6 +2,7 @@
 
 ## Table of Contents
 
+- [check-config.sh — configuration pre-flight check](#check-configsh--configuration-pre-flight-check)
 - [deploy-backend.sh — full BackEnd provisioning](#deploy-backendsh--full-backend-provisioning)
 - [restore-db.sh — database restore](#restore-dbsh--database-restore)
 - [Playbook reference](#playbook-reference)
@@ -12,6 +13,53 @@
 - [Syntax check (no execution)](#syntax-check-no-execution)
 - [List tasks without running](#list-tasks-without-running)
 - [Common scenarios](#common-scenarios)
+
+---
+
+## `check-config.sh` — configuration pre-flight check
+
+`check-config.sh` reads and validates the configuration for `deploy-backend.sh` or `restore-db.sh` **without executing anything**. Run it before either script to confirm that all required variables are set, the vault is readable, the BackEnd inventory is populated, and any required files exist on the control node.
+
+```bash
+./check-config.sh deploy-backend   # check variables for deploy-backend.sh
+./check-config.sh restore-db       # check variables for restore-db.sh
+```
+
+Run without arguments to see the full usage text explaining what each parameter checks.
+
+**Output format:** each variable or requirement is shown as one row:
+
+| Column | Meaning |
+|---|---|
+| `[OK]` | Set, valid, or present |
+| `[FAIL]` | Missing or invalid — will prevent the target script from running |
+| `[OPT]` | Optional — shown for information; not required |
+| `[INFO]` | Informational — SSH keypair status; not a pass/fail check |
+| `[WARN]` | Unusual state worth noting but not blocking |
+
+The value column shows the current value for each variable. Vault secrets are never shown — only `set` or `*** MISSING ***`. The source column shows which file provides the value.
+
+At the end, the script prints a verdict: `RESULT: <script> CAN run.` or `RESULT: <script> CANNOT run.` with a list of every reason for failure.
+
+### What `deploy-backend` checks
+
+- `~/.vault_pass.txt` exists
+- At least one BackEnd host is defined in `inventories/hosts.yml`
+- SSH keypair status (`ssh_keys/adempiere_installation_key` and `.pub`) — informational; `deploy-backend.sh` prompts whether to keep or regenerate if a key is already found
+- Mandatory variables from `group_vars/all/vars.yml`: `adempiere_username`, `custom_sshport`, `timezone`, `server_locale`, `repo_url`, `repo_version`, `install_path`
+- Mandatory variables from `group_vars/BackEnd.yml`: `swap_size_mb`, `crontab_enabled`
+- Vault secrets: `root_user_password`, `adempiere_user_password`, `adempiere_user_become_pass`, `postgres_password`
+- Optional: `crontab_jobs` count (role defaults apply when not set)
+
+### What `restore-db` checks
+
+- `~/.vault_pass.txt` exists
+- At least one BackEnd host is defined in `inventories/hosts.yml`
+- Backup file exists at `restore_local_dir/restore_backup_filename` on the control node
+- Mandatory variables from `group_vars/all/vars.yml`: `restore_backup_filename`, `restore_local_dir`, `pg_superuser`, `pg_container`, `adempiere_db`, `adempiere_owner`, `install_path`
+- Vault secret: `adempiere_db_password`
+- Optional: `restore_remote_backup_dir`, `keep_restore_file`, `restore_container_backup_dir`, `post_restore_sql_enabled`
+- If `post_restore_sql_enabled: true`: additionally checks `post_restore_sql_filename`, `post_restore_sql_local_dir`, and whether the SQL file exists on the control node
 
 ---
 

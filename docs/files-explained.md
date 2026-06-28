@@ -2,6 +2,7 @@
 
 ## Table of Contents
 
+- [check-config.sh](#check-configsh)
 - [restore-db.sh](#restore-dbsh)
 - [deploy-backend.sh](#deploy-backendsh)
 - [roles/genkey/tasks/main.yml](#rolesgenkeyTasksmainymll)
@@ -24,6 +25,42 @@
 
 Detailed explanations of individual project files — what each one does, why it is structured that way, and what to watch out for.  
 Each section covers one file: its name, location, and a full description.
+
+---
+
+## check-config.sh
+
+**Name:** `check-config.sh`  
+**Location:** project root
+
+**Description:**
+
+Shell script that reads and displays the current configuration for `deploy-backend.sh` or `restore-db.sh` **without executing any changes**. Run it before either script to verify that all required variables are populated, the vault is readable, the BackEnd inventory has at least one host, and any required files exist on the control node.
+
+```bash
+./check-config.sh deploy-backend   # check variables for deploy-backend.sh
+./check-config.sh restore-db       # check variables for restore-db.sh
+```
+
+Run without arguments to display a full usage description of what each parameter checks.
+
+**Output columns:**
+
+| Tag | Meaning |
+|---|---|
+| `[OK]` | Set, valid, or file present |
+| `[FAIL]` | Missing or invalid — blocks the target script from running |
+| `[OPT]` | Optional variable — shown for information; not required |
+| `[INFO]` | Informational — SSH keypair presence; not a pass/fail check |
+| `[WARN]` | Unusual state worth noting but not blocking |
+
+Vault secret values are never displayed — only whether they are `set` or `*** MISSING ***`. The source column shows which file each value is read from.
+
+**Verdict:** the final line states `RESULT: <script> CAN run.` or `RESULT: <script> CANNOT run.` and lists every reason for failure.
+
+**What the script does not do:**
+
+It does not prompt for input, does not run any Ansible playbook, and does not modify any file. The only external processes it spawns are `ansible-vault view` (to check vault secret presence) and `ansible-inventory --list` (to read BackEnd hosts from the inventory).
 
 ---
 
