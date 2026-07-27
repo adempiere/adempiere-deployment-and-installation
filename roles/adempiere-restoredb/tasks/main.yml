@@ -32,7 +32,7 @@
     path: "{{ restore_remote_backup_dir }}/{{ restore_backup_filename }}"
   register: archive_stat
 
-- name: Copy backup file from control node to backend
+- name: "Copy backup file from control node to backend: {{ restore_backup_filename }}"
   ansible.builtin.copy:
     src: "{{ restore_local_dir }}/{{ restore_backup_filename }}"
     dest: "{{ restore_remote_backup_dir }}/{{ restore_backup_filename }}"

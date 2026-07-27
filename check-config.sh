@@ -17,9 +17,10 @@ BACKEND_YML="$SCRIPT_DIR/group_vars/BackEnd.yml"
 
 TARGET="${1:-}"
 
-if [[ "$TARGET" != "deploy-backend" && "$TARGET" != "restore-db" ]]; then
+_usage() {
     echo ""
-    echo "Usage: $0 deploy-backend | restore-db"
+    echo "Usage: ./check-config.sh deploy-backend | restore-db"
+    echo "       ./check-config.sh --help"
     echo ""
     echo "  deploy-backend"
     echo "      Scans and validates all variables required by deploy-backend.sh:"
@@ -37,8 +38,20 @@ if [[ "$TARGET" != "deploy-backend" && "$TARGET" != "restore-db" ]]; then
     echo "      source file. Reports at the end whether restore-db.sh is ready"
     echo "      to run."
     echo ""
+}
+
+case "$TARGET" in
+  --help|-h)
+    _usage
+    exit 0
+    ;;
+  deploy-backend|restore-db)
+    ;;
+  *)
+    _usage
     exit 1
-fi
+    ;;
+esac
 
 # --- Helpers ---
 
@@ -158,6 +171,18 @@ except Exception:
     print('(could not parse)')
 " 2>/dev/null || echo "(could not read)")
 
+    CRONTAB_JOBS_DETAIL=$(python3 -c "
+import yaml, sys
+try:
+    with open('$CRONTAB_DEFAULTS_FILE') as f:
+        data = yaml.safe_load(f)
+    for j in data.get('crontab_jobs', []):
+        when = j.get('special_time') or '{}:{}'.format(j.get('hour','?'), str(j.get('minute','?')).zfill(2))
+        print('{:<9} ->  {}.j2'.format('@' + when if when == 'reboot' else when, j.get('script','?')))
+except Exception:
+    pass
+" 2>/dev/null || true)
+
     echo ""
     echo "================================================================"
     echo "  Configuration check — deploy-backend.sh"
@@ -229,6 +254,12 @@ except Exception:
     echo ""
 
     print_optional "crontab_jobs" "$CRONTAB_JOBS" "roles/deploy-crontab/defaults/main.yml"
+    if [[ -n "$CRONTAB_JOBS_DETAIL" ]]; then
+        printf "         %-36s %s\n" "scripts rendered from templates:" "roles/deploy-crontab/templates/"
+        while IFS= read -r line; do
+            [[ -n "$line" ]] && printf "           %s\n" "$line"
+        done <<< "$CRONTAB_JOBS_DETAIL"
+    fi
 
     echo ""
     echo "================================================================"

@@ -202,10 +202,18 @@ These variables are only needed when running `./restore-db.sh` or `adempiere-res
 | Field | Required | Description |
 |---|---|---|
 | `name` | yes | Unique identifier for the entry (Ansible uses this to add, update, or remove it) |
-| `script` | yes | Script filename inside `crontab_scripts_dir` |
+| `script` | yes | Script filename inside `crontab_scripts_dir` — **must have a matching Jinja2 template** (see note below) |
 | `special_time` | one of these | `reboot`, `hourly`, `daily`, etc. |
 | `hour` | one of these | Hour field (0–23) |
 | `minute` | one of these | Minute field (0–59) |
+
+> **Note — scripts come from Jinja2 templates, not from this list.**
+> The `script` filenames in `crontab_jobs` refer to shell scripts that Ansible renders from
+> Jinja2 templates in `roles/deploy-crontab/templates/` and deploys to `crontab_scripts_dir`.
+> Template deployment is **hardcoded** in `roles/deploy-crontab/tasks/main.yml` — it is **not**
+> driven automatically by the `crontab_jobs` list. Adding a new entry with a new `script` name
+> installs the cron entry but leaves the script file absent; the job will fail silently.
+> To add a new script you must also create the corresponding `.j2` template and a deploy task.
 
 **Default cron jobs:**
 

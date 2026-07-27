@@ -95,6 +95,24 @@ PostgreSQL data is stored in a named Docker volume. The volume survives containe
 - `23:50` daily — stop the stack (pre-backup window)
 - `23:55` daily — restart the stack (after backup)
 
+#### How the cron scripts get onto the server
+
+The two shell scripts referenced in `crontab_jobs` (`cron-job-start-all-services.sh` and
+`cron-job-stop-all-services.sh`) **do not exist as plain files** in this repository. They are
+**Jinja2 templates** located in `roles/deploy-crontab/templates/` (`.j2` extension). Ansible
+renders them at deploy time — substituting `{{ install_path }}` and other variables — and places
+the resulting shell scripts in `01-Backupscripts/`.
+
+The deployment of these two templates is **hardcoded** in `roles/deploy-crontab/tasks/main.yml`
+(tasks "Deploy start script from template" and "Deploy stop script from template"). It is
+**not** driven automatically by the `crontab_jobs` list. This means:
+
+> **Important:** Adding a new entry to `crontab_jobs` with a different `script` name will install
+> the cron entry but will **not** deploy the script file. The cron job will fail silently at
+> runtime. To add a new script, you must also create a `.j2` template in
+> `roles/deploy-crontab/templates/` and add a corresponding deploy task in
+> `roles/deploy-crontab/tasks/main.yml`.
+
 ---
 
 ## FrontEnd internals — Traefik

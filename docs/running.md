@@ -4,6 +4,8 @@
 
 - [check-config.sh — configuration pre-flight check](#check-configsh--configuration-pre-flight-check)
 - [deploy-backend.sh — full BackEnd provisioning](#deploy-backendsh--full-backend-provisioning)
+  - [Interaction points](#interaction-points)
+  - [Known-hosts cleanup](#known-hosts-cleanup)
 - [restore-db.sh — database restore](#restore-dbsh--database-restore)
 - [Playbook reference](#playbook-reference)
 - [Running a single playbook](#running-a-single-playbook)
@@ -87,7 +89,7 @@ Before running:
 |---|---|---|
 | 1 | *(local)* | Keypair check: if `ssh_keys/adempiere_installation_key` exists, asks whether to delete and regenerate. Default is NO — only regenerate on a full server reset. |
 | 2 | `genkey.yml` | Generate RSA keypair (skipped if Step 1 kept the existing key). |
-| Pre-flight | *(script)* | Check `~/.vault_pass.txt` exists; remove stale known_hosts entries for all BackEnd IPs. |
+| Pre-flight | *(script)* | Check `~/.vault_pass.txt` exists; remove stale `known_hosts` entries for all BackEnd IPs (see [Known-hosts cleanup](#known-hosts-cleanup) below). |
 | 3 | `serversprep.yml` | Distribute the public key to the BackEnd server (root, port 22). |
 | 4 | `os-updates.yml` | OS dist-upgrade + reboot. Waits up to 5 minutes for server to return. |
 | 5 | `serversconf.yml` | Full server hardening: create admin user, deploy SSH keys, install packages, harden SSH, configure unattended upgrades. After this step, root login is disabled and SSH moves to the custom port. |
@@ -99,6 +101,41 @@ Before running:
 ### Logs
 
 Every run writes to `logs/deploy-backend-<YYYYMMDD-HHMMSS>.log` on the control node. Both stdout and stderr are captured. The `logs/` directory is gitignored — log files are never committed.
+
+### Interaction points
+
+The script pauses at up to four points and waits for operator input before continuing:
+
+| # | When | Mode | Prompt |
+|---|---|---|---|
+| 1 | Before deployment starts | real run only | `Type YES to proceed` |
+| 2 | Existing SSH keypair found | real run only | `Delete and regenerate? [yes/NO]` |
+| 3 | Before Step 3 — port 22 required | always | `Confirm port 22 is open, then press ENTER` |
+| 4 | After Step 5 — SSH port has changed | always | `Firewall updated? Press ENTER to continue with Steps 6-9` |
+
+Points 1 and 2 only appear in a real run. Points 3 and 4 appear in both real and dry-run mode because Ansible connects to the server in both cases and both ports must be reachable.
+
+### Known-hosts cleanup
+
+Before Step 3, the script runs `ssh-keygen -R <BackEnd IP>` to remove the server's old SSH host fingerprint from `~/.ssh/known_hosts`. You will see output like:
+
+```
+>>> Pre-flight: removing stale known_hosts entry for 203.0.113.10
+# Host 203.0.113.10 found: line 12
+# Host 203.0.113.10 found: line 14
+/home/user/.ssh/known_hosts updated.
+Original contents retained as /home/user/.ssh/known_hosts.old
+```
+
+**What it means:** The IP appeared multiple times in `known_hosts` — once per port previously connected on (port 22, the custom SSH port, etc.). All entries are removed. A backup is written automatically to `~/.ssh/known_hosts.old`.
+
+**Why it runs:** If the server has been reinstalled it now has a different SSH host key. Without removing the old entry, Ansible (and SSH) would refuse to connect with "Host key verification failed". The cleanup happens before Step 3 so the connection always succeeds.
+
+**Why it is harmless:**
+- *Server was reinstalled:* removal is required — the old fingerprint is wrong.
+- *Server was not reinstalled:* the valid entry is removed, but it is re-added automatically on the next successful connection (the project's `ansible.cfg` sets `host_key_checking = False`). After the run, `known_hosts` is back to normal.
+
+**Note:** this cleanup runs even in `--check` mode — it is the one local side effect that is not suppressed by `--check`.
 
 ### Dry run notes
 

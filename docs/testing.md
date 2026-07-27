@@ -2,6 +2,7 @@
 
 ## Table of Contents
 
+- [Before you deploy — check-config.sh](#before-you-deploy--check-configsh)
 - [Quick diagnostic index](#quick-diagnostic-index)
 - [SSH / Network](#ssh--network)
 - [OS Configuration](#os-configuration)
@@ -13,11 +14,31 @@
 
 ---
 
-Diagnostic reference — use this when something is not working as expected.  
+## Before you deploy — `check-config.sh`
+
+The primary pre-deployment check is `check-config.sh`. Run it from the project root before
+`deploy-backend.sh` or `restore-db.sh` to confirm that all required variables are set, the vault
+is readable, the inventory has at least one host, and any required files exist on the control node
+— without executing anything on the servers.
+
+```bash
+./check-config.sh deploy-backend   # pre-flight check for deploy-backend.sh
+./check-config.sh restore-db       # pre-flight check for restore-db.sh
+```
+
+The output shows each requirement and variable as one row tagged `[OK]`, `[FAIL]`, `[OPT]`,
+`[INFO]`, or `[WARN]`. The final line gives a clear verdict: `RESULT: <script> CAN run.` or
+`RESULT: <script> CANNOT run.` with every failing reason listed. Fix all `[FAIL]` items before
+proceeding.
+
+For a full description of what each mode checks, see [running.md — check-config.sh](running.md#check-configsh--configuration-pre-flight-check).
+
+---
+
+Diagnostic reference — use this when something is not working as expected *after* a deployment.  
 Jump to the section that matches your failure.
 
-For a step-by-step deployment with built-in verification, see [getting-started.md](getting-started.md).  
-For pre-flight checks before first deployment, see the **Pre-flight check** section in [getting-started.md](getting-started.md).
+For a step-by-step deployment with built-in verification, see [getting-started.md](getting-started.md).
 
 ---
 

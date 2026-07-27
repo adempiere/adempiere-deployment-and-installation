@@ -33,6 +33,90 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# --- Argument parsing (before log setup so --help never creates a log file) ---
+
+case "${1:-}" in
+  --help|-h)
+    cat <<'EOF'
+
+Usage:
+  ./deploy-backend.sh           Real run  — provision the BackEnd server end-to-end.
+  ./deploy-backend.sh --check   Dry run   — show what Ansible would change; no writes.
+  ./deploy-backend.sh --help    This help.
+
+WHAT IT DOES (9 steps):
+  1  Keypair check      — keep or regenerate ssh_keys/adempiere_installation_key.
+  2  genkey.yml         — generate RSA keypair (skipped when keypair is kept).
+  3  serversprep.yml    — copy public key to BackEnd as root on port 22.
+  4  os-updates.yml     — OS update + reboot; waits for the server to return.
+  5  serversconf.yml    — harden SSH, create admin user, move SSH to custom port.
+  6  serverswap.yml     — configure swap (size from group_vars/BackEnd.yml).
+  7  install-docker.yml — install Docker CE.
+  8  deploy-adempiere.yml — deploy the ADempiere container stack.
+  9  deploy-crontab.yml   — configure crontab (start/stop/restart schedule).
+
+REAL RUN (no argument):
+  Displays a full configuration summary and asks for explicit YES before
+  making any changes. All output is also written to a timestamped file in logs/.
+
+DRY RUN (--check):
+  Passes --check to every Ansible playbook — no changes are made on the server.
+  Ansible still connects to the server, so both ports must be reachable:
+    port 22          for Steps 3-5 (root access, before SSH hardening)
+    custom SSH port  for Steps 6-9 (admin user, after SSH hardening)
+  One local side effect always runs even in --check mode:
+    ~/.ssh/known_hosts is updated — the old host fingerprint for the
+    BackEnd IP is removed so Ansible can connect without a key-mismatch
+    error. A backup is saved automatically as ~/.ssh/known_hosts.old.
+    This is harmless: if the server was reinstalled the removal is
+    required; if not, the key is re-added automatically on the next
+    successful connection.
+  Limitations:
+    Step 1 (keypair handling) is skipped — no local files are touched.
+    Step 4 (os-updates): the reboot task is skipped in check mode; the
+    dry-run output does not reflect the post-reboot state.
+    Steps 6-9 require the admin user and custom port to already exist on
+    the server — their --check output is approximate on a fresh server.
+
+INTERACTION POINTS:
+  The script pauses at up to four points and waits for input.
+
+  #  When                           Mode        Prompt
+  -  -----------------------------  ----------  --------------------------------
+  1  Before deployment starts       real only   "Type YES to proceed"
+  2  Existing SSH keypair found     real only   "Delete and regenerate? [yes/NO]"
+  3  Before Step 3 (needs port 22)  always      "Confirm port 22 is open — ENTER"
+  4  After Step 5 (port changed)    always      "Firewall updated? — ENTER"
+
+  Points 1 and 2 only appear in a real run.
+  Points 3 and 4 appear in both real and dry-run mode because Ansible
+  connects to the server in both cases.
+
+PREREQUISITES:
+  ~/.vault_pass.txt            vault password file (mode 0600)
+  group_vars/all/vars.yml      deployment configuration
+  group_vars/all/vault.yml     encrypted secrets
+  inventories/hosts.yml        BackEnd host IP
+  Server reachable on port 22 as root with password authentication.
+
+Run ./check-config.sh deploy-backend first to validate all variables.
+EOF
+    exit 0
+    ;;
+  --check)
+    CHECK="--check"
+    ;;
+  "")
+    CHECK=""
+    ;;
+  *)
+    echo "ERROR: unknown argument '${1}'."
+    echo "Usage: ./deploy-backend.sh [--check | --help]"
+    exit 1
+    ;;
+esac
+
 LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
 LOGFILE="$LOG_DIR/deploy-backend-$(date +%Y%m%d-%H%M%S).log"
@@ -109,11 +193,6 @@ try:
 except Exception:
     print('      (could not read inventory)')
 " 2>/dev/null || echo "      (could not read inventory)")
-
-CHECK=""
-if [[ "${1:-}" == "--check" ]]; then
-  CHECK="--check"
-fi
 
 # --- Configuration summary (shown in both dry-run and real-run mode) ---
 
@@ -225,6 +304,18 @@ else
 fi
 echo ""
 
+_box() { printf "  │  %-63s│\n" "$1"; }
+echo "  ┌─────────────────────────────────────────────────────────────────┐"
+_box "STEPS 3-5 CONNECT AS ROOT ON PORT 22"
+_box "Ensure port 22 is open on the server before continuing."
+_box ""
+_box "Cloud firewall users (Contabo, Hetzner, AWS ...): verify now."
+_box "Port 22 will be closed after Step 5 (serversconf.yml)."
+echo "  └─────────────────────────────────────────────────────────────────┘"
+echo ""
+read -rp "  Confirm port 22 is open, then press ENTER to continue: " _
+echo ""
+
 # Step 3 — Distribute public key to backend (root, port 22)
 echo ">>> Step 3: serversprep.yml — Distribute SSH key to BackEnd"
 ansible-playbook serversprep.yml --limit BackEnd $CHECK
@@ -238,6 +329,27 @@ echo ""
 # Step 5 — Full server hardening
 echo ">>> Step 5: serversconf.yml — Server hardening"
 ansible-playbook serversconf.yml --limit BackEnd $CHECK
+echo ""
+
+if [[ -z "$CHECK" ]]; then
+  echo "  ┌─────────────────────────────────────────────────────────────────┐"
+  _box "SSH PORT HAS CHANGED"
+  _box "serversconf.yml has moved SSH from port 22 to port $CUSTOM_SSHPORT."
+  _box "Steps 6-9 will connect on the new port."
+  _box ""
+  _box "Cloud firewall users (Contabo, Hetzner, AWS ...): act now."
+  _box "  1. Open port $CUSTOM_SSHPORT."
+  _box "  2. Close port 22."
+  _box "Steps 6-9 will fail to connect if port $CUSTOM_SSHPORT is blocked."
+  echo "  └─────────────────────────────────────────────────────────────────┘"
+  echo ""
+  read -rp "  Firewall updated? Press ENTER to continue with Steps 6-9: " _
+else
+  echo "  NOTE (dry run): in a real run SSH moves to port $CUSTOM_SSHPORT after this step."
+  echo "  Ensure port $CUSTOM_SSHPORT is open in your cloud firewall before running live."
+  echo ""
+  read -rp "  Press ENTER to continue with Steps 6-9: " _
+fi
 echo ""
 
 # Step 6 — Swap

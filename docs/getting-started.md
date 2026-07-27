@@ -157,6 +157,20 @@ This creates:
 
 Then verify everything is in place before proceeding:
 
+**Run the configuration pre-flight check:**
+
+```bash
+./check-config.sh deploy-backend
+```
+
+This is the primary pre-flight tool. It reads the current configuration and prints a complete
+summary — variables, vault secrets, inventory, SSH keypair status — and ends with a clear verdict:
+`RESULT: deploy-backend.sh CAN run.` or `RESULT: deploy-backend.sh CANNOT run.`
+Fix all `[FAIL]` items before proceeding. For the full description of what is checked and what
+each output tag means, see [running.md — check-config.sh](running.md#check-configsh--configuration-pre-flight-check).
+
+If you need to investigate a specific item in isolation, the individual commands below can help:
+
 ```bash
 # Ansible version — expect core 2.14+
 ansible --version

@@ -206,6 +206,12 @@ ansible-vault encrypt group_vars/all/vault.yml
 cp inventories/hosts_template.yml inventories/hosts.yml   # fill in server IPs
 ```
 
+**Check your configuration first** (reads and validates everything — no changes made):
+
+```bash
+./check-config.sh deploy-backend
+```
+
 **Deploy a BackEnd server** (fresh server, port 22, root access):
 
 ```bash
@@ -230,11 +236,16 @@ Two entry-point scripts cover the two most common operations:
 
 | Script | When to use it |
 |---|---|
+| `./check-config.sh deploy-backend` | **Pre-flight check — run this first.** Reads and validates all variables, vault secrets, inventory, and SSH keypair without touching any server. Ends with a clear `CAN run` / `CANNOT run` verdict. |
+| `./check-config.sh restore-db` | Pre-flight check for `restore-db.sh` — validates restore variables and confirms the backup file exists on the control node. |
 | `./deploy-backend.sh` | Full BackEnd provisioning from a clean server. Handles keypair setup, pre-flight checks, and runs all playbooks in order with safety prompts and logging. |
 | `./restore-db.sh` | Upload a PostgreSQL backup from the control node and restore it into a running ADempiere stack. |
 
 ```bash
-# Dry run first — shows what would change, no writes
+# Pre-flight check — validates all configuration without touching the server
+./check-config.sh deploy-backend
+
+# Dry run — shows what would change, no writes
 ./deploy-backend.sh --check
 
 # Live run — provisions the BackEnd server
