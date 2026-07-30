@@ -105,6 +105,14 @@
   community.general.timezone:
     name: "{{ timezone }}"
 
+- name: "INFO: Set hostname"
+  ansible.builtin.debug:
+    msg: "hostname={{ server_hostname }}"
+
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "{{ server_hostname }}"
+
 - name: "INFO: Create user"
   ansible.builtin.debug:
     msg: "user={{ adempiere_username }} | shell=/bin/bash | home=/home/{{ adempiere_username }}"

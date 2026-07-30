@@ -75,8 +75,10 @@ See [vault.md](vault.md) for step-by-step instructions on creating and encryptin
 
 | Variable | Source file | M/O | Default | Description | Example |
 |---|---|---|---|---|---|
+| `project_name` | vars.yml | **M** | — | Displayed as the title of every `check-config.sh` run (both `deploy-backend` and `restore-db`). Set this first — it confirms at a glance that the right `vars.yml` is active before running any script. | `Cofia-Fertiagro`, `Kaltmann` |
 | `timezone` | vars.yml | **M** | — | System timezone for all servers and all Docker containers. Must be a valid [tz database name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). | `Europe/Berlin`, `America/New_York` |
 | `server_locale` | vars.yml | **O** | `en_US.UTF-8` | System locale configured on all servers during initial setup by the `serversconf` role. The locale must be available in the OS image. | `en_US.UTF-8`, `de_DE.UTF-8` |
+| `server_hostname` | vars.yml | **M** | — | Hostname to assign to the server, replacing the provider-assigned default. Set by the `serversconf` role using the `ansible.builtin.hostname` module. Use a short DNS-safe name: letters, digits, and hyphens only — no dots, no underscores. | `erp-backend-01` |
 | `swap_size_mb` | group_vars/BackEnd.yml | **O** | `8192` | Swap file size in MB for the BackEnd server. Sized for PostgreSQL memory spikes. | `8192` (8 GB) |
 | `swap_size_mb` | group_vars/FrontEnd.yml | **O** | `4096` | Swap file size in MB for the FrontEnd server. Traefik is lightweight; 4 GB provides a safe margin. | `4096` (4 GB) |
 

@@ -149,6 +149,7 @@ ADEMPIERE_USERNAME=$(read_var adempiere_username)
 CUSTOM_SSHPORT=$(read_var custom_sshport)
 TIMEZONE=$(read_var timezone)
 SERVER_LOCALE=$(read_var server_locale)
+SERVER_HOSTNAME=$(read_var server_hostname)
 REPO_URL=$(read_var repo_url)
 REPO_VERSION=$(read_var repo_version)
 INSTALL_PATH=$(read_var install_path)
@@ -209,6 +210,7 @@ echo "  Target BackEnd server(s):"
 echo "$BACKEND_LIST"
 echo ""
 echo "  Server configuration  (group_vars/all/vars.yml + group_vars/BackEnd.yml):"
+printf "    %-30s %s\n" "Hostname:"                 "$SERVER_HOSTNAME"
 printf "    %-30s %s\n" "Admin username:"           "$ADEMPIERE_USERNAME"
 printf "    %-30s %s\n" "SSH port (after hardening):" "$CUSTOM_SSHPORT"
 printf "    %-30s %s\n" "Timezone:"                 "$TIMEZONE"
