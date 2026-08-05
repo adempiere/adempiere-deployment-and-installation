@@ -3,7 +3,7 @@
   gather_facts: false
 
   pre_tasks:
-    - name: Assign user for role
+    - name: "APPLY: Connect as admin on custom port"
       ansible.builtin.set_fact:
         ansible_user: "{{ adempiere_username }}"
         # Esto hará que Ansible use las variables de tu Vault automáticamente

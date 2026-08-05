@@ -34,7 +34,7 @@
       - "logs={{ crontab_logs_dir }}/"
       - "jobs={{ crontab_jobs | map(attribute='name') | list }}"
 
-- name: Ensure scripts directory exists
+- name: "APPLY: Ensure scripts directory exists"
   ansible.builtin.file:
     path: "{{ crontab_scripts_dir }}"
     state: directory
@@ -42,7 +42,7 @@
     group: "{{ adempiere_username }}"
     mode: '0755'
 
-- name: Ensure log directory exists
+- name: "APPLY: Ensure log directory exists"
   ansible.builtin.file:
     path: "{{ crontab_logs_dir }}"
     state: directory
@@ -50,7 +50,7 @@
     group: "{{ adempiere_username }}"
     mode: '0755'
 
-- name: Deploy start script from template
+- name: "APPLY: Deploy start script from template"
   ansible.builtin.template:
     src: cron-job-start-all-services.sh.j2
     dest: "{{ crontab_scripts_dir }}/cron-job-start-all-services.sh"
@@ -58,7 +58,7 @@
     group: "{{ adempiere_username }}"
     mode: '0755'
 
-- name: Deploy stop script from template
+- name: "APPLY: Deploy stop script from template"
   ansible.builtin.template:
     src: cron-job-stop-all-services.sh.j2
     dest: "{{ crontab_scripts_dir }}/cron-job-stop-all-services.sh"
@@ -66,7 +66,7 @@
     group: "{{ adempiere_username }}"
     mode: '0755'
 
-- name: Install crontab entries
+- name: "APPLY: Install crontab entries"
   ansible.builtin.cron:
     name:         "{{ item.name }}"
     special_time: "{{ item.special_time | default(omit) }}"

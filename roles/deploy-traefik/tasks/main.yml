@@ -53,7 +53,7 @@
   ansible.builtin.debug:
     msg: "network={{ traefik_network_name }} | driver=bridge"
 
-- name: Create {{ traefik_container_name }} docker networks
+- name: "APPLY: Create {{ traefik_container_name }} docker networks"
   community.docker.docker_network:
     name: "{{ traefik_network_name }}"
     driver: bridge
@@ -62,7 +62,7 @@
   ansible.builtin.debug:
     msg: "base={{ docker_base_path }} | dirs={{ traefik_container_name }}, {{ socket_container_name }}"
 
-- name: Create directory structure
+- name: "APPLY: Create directory structure"
   file:
     path: "{{ docker_base_path }}/{{ item }}"
     state: directory
@@ -77,7 +77,7 @@
   ansible.builtin.debug:
     msg: "base={{ docker_base_path }}/{{ traefik_container_name }} | subdirs=config,certs,logs"
 
-- name: Create subdirectories for {{ traefik_container_name }}
+- name: "APPLY: Create subdirectories for {{ traefik_container_name }}"
   file:
     path: "{{ docker_base_path }}/{{ traefik_container_name }}/{{ item }}"
     state: directory
@@ -93,7 +93,7 @@
   ansible.builtin.debug:
     msg: "dest={{ docker_base_path }}/{{ traefik_container_name }}/.env | mode=0600"
 
-- name: Copy {{ traefik_container_name }} .env files
+- name: "APPLY: Copy {{ traefik_container_name }} .env files"
   template:
     src: .env.j2
     dest: "{{ docker_base_path }}/{{ traefik_container_name }}/.env"
@@ -103,7 +103,7 @@
   ansible.builtin.debug:
     msg: "dest={{ docker_base_path }}/{{ traefik_container_name }}/docker-compose.yml and {{ docker_base_path }}/{{ socket_container_name }}/docker-compose.yml"
 
-- name: Copy docker-compose.yml for {{ traefik_container_name }} and {{ socket_container_name }}
+- name: "APPLY: Copy docker-compose.yml for {{ traefik_container_name }} and {{ socket_container_name }}"
   template:
     src: "{{item.src}}"
     dest: "{{ docker_base_path }}/{{ item.container }}/{{item.dest}}"
@@ -115,7 +115,7 @@
   ansible.builtin.debug:
     msg: "dest={{ docker_base_path }}/{{ traefik_container_name }}/config/ | files=tls-opts.yml,middlewares-secure-headers.yaml,traefik.yaml,app-adempiere.yaml"
 
-- name: Copy configuration files to {{ traefik_container_name }}
+- name: "APPLY: Copy configuration files to {{ traefik_container_name }}"
   template:
     src: "{{item.src}}"
     dest: "{{ docker_base_path }}/{{ traefik_container_name }}/config/{{item.dest}}"
@@ -134,7 +134,7 @@
   ansible.builtin.debug:
     msg: "starting {{ traefik_container_name }} and {{ socket_container_name }} via docker compose | project_src={{ docker_base_path }}"
 
-- name: Start the {{ traefik_container_name }} and {{ socket_container_name }} containers with docker compose
+- name: "APPLY: Start the {{ traefik_container_name }} and {{ socket_container_name }} containers with docker compose"
   community.docker.docker_compose_v2:
     project_src: "{{ docker_base_path }}/{{ item.container }}"
     state: present

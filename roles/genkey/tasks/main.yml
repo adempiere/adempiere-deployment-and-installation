@@ -5,7 +5,7 @@
   ansible.builtin.debug:
     msg: "path={{ playbook_dir }}/ssh_keys | mode=0700"
 
-- name: Ensure ssh_keys directory exists inside the project
+- name: "APPLY: Ensure ssh_keys directory exists inside the project"
   ansible.builtin.file:
     path: "{{ playbook_dir }}/ssh_keys"
     state: directory
@@ -16,7 +16,7 @@
   ansible.builtin.debug:
     msg: "path={{ playbook_dir }}/ssh_keys/{{ key_name }} | type=rsa | size={{ key_size }}"
 
-- name: Ensure the project SSH keypair exists
+- name: "APPLY: Ensure the project SSH keypair exists"
   community.crypto.openssh_keypair:
     path: "{{ playbook_dir }}/ssh_keys/{{ key_name }}"
     type: rsa
@@ -30,12 +30,12 @@
     msg: "src=ssh_keys/{{ key_name }}.pub | dest=roles/serversconf/files/public_keys/present/admin/{{ key_name }}.pub"
 
 # In --check mode the keypair was not actually written, so the src does not exist yet — ignore the expected failure.
-- name: Copy public key to serversconf role
+- name: "APPLY: Copy public key to serversconf role"
   ansible.builtin.copy:
     src: "{{ playbook_dir }}/ssh_keys/{{ key_name }}.pub"
     dest: "{{ playbook_dir }}/roles/serversconf/files/public_keys/present/admin/{{ key_name }}.pub"
   ignore_errors: "{{ ansible_check_mode }}"
 
-- name: Show where the keypair was saved
+- name: "INFO: Show where the keypair was saved"
   debug:
     msg: "Keypair at {{ ssh_key_info.filename }} — comment: {{ ssh_key_info.comment }}"

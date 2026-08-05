@@ -1,0 +1,21 @@
+# /etc/wireguard/wg0.conf — managed by Ansible; do not edit manually.
+[Interface]
+PrivateKey = {{ lookup('file', playbook_dir + '/ssh_keys/wireguard_server_private.key') | trim }}
+Address    = {{ wireguard_server_address }}
+ListenPort = {{ wireguard_port }}
+
+# --- Peers ---
+# Add one [Peer] block per POS client:
+#
+# [Peer]
+# # <client name / location>
+# PublicKey  = <client public key>
+# AllowedIPs = <unique /32, e.g. 10.8.0.2/32>
+#              Extend with the local LAN subnet if the server needs to reach the
+#              printer directly (server-push printing):
+#              AllowedIPs = 10.8.0.2/32, 192.168.1.0/24
+#
+# After editing, reload without dropping existing connections:
+#   sudo wg syncconf wg0 <(wg-quick strip wg0)
+# Or full restart (drops active tunnels briefly):
+#   sudo systemctl restart wg-quick@wg0

@@ -160,6 +160,9 @@ if [[ "$TARGET" == "deploy-backend" ]]; then
     INSTALL_PATH=$(read_var install_path)
     SWAP_SIZE=$(read_backend_var swap_size_mb)
     CRONTAB_ENABLED=$(read_backend_var crontab_enabled)
+    WIREGUARD_ENABLED=$(read_backend_var wireguard_enabled)
+    WIREGUARD_PORT=$(read_var wireguard_port)
+    WIREGUARD_ADDR=$(read_var wireguard_server_address)
 
     CRONTAB_DEFAULTS_FILE="$SCRIPT_DIR/roles/deploy-crontab/defaults/main.yml"
     CRONTAB_JOBS=$(python3 -c "
@@ -231,6 +234,30 @@ except Exception:
     fi
 
     echo ""
+    echo "  WireGuard keypair  (stable across reinstalls — never commit; keep if found):"
+    echo ""
+
+    WG_PRIV="wireguard_server_private.key"
+    WG_PUB="wireguard_server_public.key"
+
+    if [[ "$WIREGUARD_ENABLED" == "true" ]]; then
+        if [[ -f "$KEY_DIR/$WG_PRIV" ]]; then
+            print_row "[INFO]" "WG private key found" "$WG_PRIV" "$KEY_DIR/"
+        else
+            _fail "WireGuard private key missing: $KEY_DIR/$WG_PRIV"
+            print_row "[FAIL]" "WG private key missing" "$WG_PRIV" "$KEY_DIR/"
+        fi
+        if [[ -f "$KEY_DIR/$WG_PUB" ]]; then
+            print_row "[INFO]" "WG public key found"  "$WG_PUB"  "$KEY_DIR/"
+        else
+            _fail "WireGuard public key missing: $KEY_DIR/$WG_PUB"
+            print_row "[FAIL]" "WG public key missing" "$WG_PUB" "$KEY_DIR/"
+        fi
+    else
+        print_row "[INFO]" "WireGuard disabled" "(wireguard_enabled: false — keys not checked)" "group_vars/BackEnd.yml"
+    fi
+
+    echo ""
     echo "  Mandatory variables:"
     echo ""
 
@@ -244,6 +271,11 @@ except Exception:
     print_mandatory "install_path"         "$INSTALL_PATH"       "group_vars/all/vars.yml"
     print_mandatory "swap_size_mb"         "$SWAP_SIZE"          "group_vars/BackEnd.yml"
     print_mandatory "crontab_enabled"      "$CRONTAB_ENABLED"    "group_vars/BackEnd.yml"
+    print_mandatory "wireguard_enabled"    "$WIREGUARD_ENABLED"  "group_vars/BackEnd.yml"
+    if [[ "$WIREGUARD_ENABLED" == "true" ]]; then
+        print_mandatory "wireguard_port"           "$WIREGUARD_PORT" "group_vars/all/vars.yml"
+        print_mandatory "wireguard_server_address" "$WIREGUARD_ADDR" "group_vars/all/vars.yml"
+    fi
 
     echo ""
     echo "  Vault secrets  (values not shown):"

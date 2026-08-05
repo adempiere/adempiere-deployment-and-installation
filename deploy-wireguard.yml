@@ -1,0 +1,27 @@
+#SPDX-License-Identifier: MIT-0
+---
+# deploy-wireguard.yml — Install and configure WireGuard VPN server on the BackEnd.
+#
+# Connects on the custom SSH port (post-hardening) as adempiere_username.
+# Must run AFTER serversconf.yml has hardened the server and moved SSH to the custom port.
+#
+# PREREQUISITES:
+#   The server key pair must exist in ssh_keys/ on the control node before running.
+#   These files are gitignored — generate once per installation and keep them stable:
+#     wg genkey | tee ssh_keys/wireguard_server_private.key \
+#               | wg pubkey > ssh_keys/wireguard_server_public.key
+#
+# SKIP:
+#   Set wireguard_enabled: false in group_vars/BackEnd.yml to skip installation entirely.
+#
+# Run standalone:  ansible-playbook deploy-wireguard.yml
+# Dry run:         ansible-playbook deploy-wireguard.yml --check
+
+- hosts: BackEnd
+  become: true
+  gather_facts: true
+  vars:
+    ansible_user: "{{ adempiere_username }}"
+    ansible_port: "{{ custom_sshport }}"
+  roles:
+    - deploy-wireguard

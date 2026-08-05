@@ -2,22 +2,24 @@
   ansible.builtin.debug:
     msg: "chdir={{ install_path }}/adempiere-ui-gateway/docker-compose | first run: DB init + image pull | profile={{ adempiere_profile }}"
 
-- name: Run start-all.sh (first run — initializes DB and pulls images)
+- name: "APPLY: Run start-all.sh (first run — initializes DB and pulls images)"
   ansible.builtin.command: "./start-all.sh {{ adempiere_profile }}"
   args:
     chdir: "{{ install_path }}/adempiere-ui-gateway/docker-compose"
   environment:
     PWD: "{{ install_path }}/adempiere-ui-gateway/docker-compose"
+  async: 3600
+  poll: 30
   changed_when: true
 
-- name: Wait for stack to stabilize after first start
+- name: "APPLY: Wait for stack to stabilize after first start"
   ansible.builtin.include_tasks: wait.yml
 
 - name: "INFO: Stop stack before clean restart"
   ansible.builtin.debug:
     msg: "chdir={{ install_path }}/adempiere-ui-gateway/docker-compose | stopping stack for clean restart"
 
-- name: Stop stack before clean restart
+- name: "APPLY: Stop stack before clean restart"
   ansible.builtin.command: "./stop-all.sh"
   args:
     chdir: "{{ install_path }}/adempiere-ui-gateway/docker-compose"
@@ -29,22 +31,24 @@
   ansible.builtin.debug:
     msg: "chdir={{ install_path }}/adempiere-ui-gateway/docker-compose | second run: clean start | profile={{ adempiere_profile }}"
 
-- name: Run start-all.sh (second run — clean start with initialized DB)
+- name: "APPLY: Run start-all.sh (second run — clean start with initialized DB)"
   ansible.builtin.command: "./start-all.sh {{ adempiere_profile }}"
   args:
     chdir: "{{ install_path }}/adempiere-ui-gateway/docker-compose"
   environment:
     PWD: "{{ install_path }}/adempiere-ui-gateway/docker-compose"
+  async: 3600
+  poll: 30
   changed_when: true
 
-- name: Wait for stack to stabilize after second start
+- name: "APPLY: Wait for stack to stabilize after second start"
   ansible.builtin.include_tasks: wait.yml
 
 - name: "INFO: Run health-check.sh"
   ansible.builtin.debug:
     msg: "chdir={{ install_path }}/adempiere-ui-gateway/docker-compose | profile={{ adempiere_profile }}"
 
-- name: Run health-check.sh
+- name: "APPLY: Run health-check.sh"
   ansible.builtin.command: "bash health-check.sh {{ adempiere_profile }}"
   args:
     chdir: "{{ install_path }}/adempiere-ui-gateway/docker-compose"

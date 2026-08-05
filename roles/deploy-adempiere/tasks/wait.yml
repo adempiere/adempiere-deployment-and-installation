@@ -2,7 +2,7 @@
   ansible.builtin.debug:
     msg: "waiting for {{ adempiere_container_filter }}.postgresql | retries=30 | delay=10s"
 
-- name: Wait until postgresql is running
+- name: "APPLY: Wait until postgresql is running"
   ansible.builtin.command: >
     docker inspect -f "{{'{{'}}.State.Status{{'}}'}}"
     {{ adempiere_container_filter }}.postgresql
@@ -17,7 +17,7 @@
   ansible.builtin.debug:
     msg: "waiting for {{ adempiere_container_filter }}.zk to be stable (running >= 60s) | retries=20 | delay=10s"
 
-- name: Wait until ZK has been running stably for at least 60 seconds
+- name: "APPLY: Wait until ZK has been running stably for at least 60 seconds"
   ansible.builtin.shell: |
     status=$(docker inspect -f '{{"{{"}}.State.Running{{"}}"}}' {{ adempiere_container_filter }}.zk 2>/dev/null)
     [ "$status" != "true" ] && exit 1

@@ -20,6 +20,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+format_duration() { local s=$1; printf '%dm %ds' $((s / 60)) $((s % 60)); }
 
 # --- Argument parsing (before any ansible call so --help is instant) ---
 
@@ -268,6 +269,8 @@ echo ""
 # Pre-flight: refresh host keys for all BackEnd servers in known_hosts.
 # Remove the stale entry (left over from a previous server install) and add
 # the current fingerprint on the custom SSH port so Ansible can connect.
+echo ">>> Task 1 of 2: Pre-flight — refresh known_hosts"
+_t_preflight=$SECONDS
 FOUND_IP=false
 while IFS= read -r line; do
   IP=$(echo "$line" | awk '{print $NF}')
@@ -282,14 +285,27 @@ if [[ "$FOUND_IP" == "false" ]]; then
   echo "WARNING: could not determine backend IP(s) from inventory — skipping known_hosts refresh."
 fi
 echo ""
+dur_preflight=$((SECONDS - _t_preflight))
 
 # --- Run restore ---
 
-echo ">>> adempiere-restoredb.yml — Restore database"
+echo ">>> Task 2 of 2: adempiere-restoredb.yml — Restore database"
+_t_restore=$SECONDS
 ansible-playbook adempiere-restoredb.yml
+dur_restore=$((SECONDS - _t_restore))
 echo ""
 
 echo "================================================================"
 echo "  Database restore complete."
 echo "================================================================"
+echo ""
+
+CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
+echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN}${BOLD}  ⏱  Restore Timing${NC}"
+echo -e "${CYAN}  Task 1  Pre-flight:  $(format_duration $dur_preflight)${NC}"
+echo -e "${CYAN}  Task 2  Restore:     $(format_duration $dur_restore)${NC}"
+echo -e "${CYAN}  ─────────────────────${NC}"
+echo -e "${CYAN}${BOLD}  Total:               $(format_duration $((dur_preflight + dur_restore)))${NC}"
+echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
 echo ""

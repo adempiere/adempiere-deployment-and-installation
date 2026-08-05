@@ -1,7 +1,7 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # tasks file for roles/deploy-containers
-- name: Create Traefik labels dictionary
+- name: "APPLY: Create Traefik labels dictionary"
   set_fact:
     my_labels: "{{ my_labels | default({}) | combine({ item.key: item.value }) }}"
   with_items:
@@ -20,7 +20,7 @@
   ansible.builtin.debug:
     msg: "name={{ container_name }} | image={{ container_image }} | network={{ docker_network_name }}"
 
-- name: Start container through Traefik
+- name: "APPLY: Start container through Traefik"
   docker_container:
     name: "{{ container_name }}"
     image: "{{ container_image }}"

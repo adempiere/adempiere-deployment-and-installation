@@ -30,7 +30,7 @@
 ##
 ---
 
-- name: Check if swapfile exists
+- name: "APPLY: Check if swapfile exists"
   ansible.builtin.stat:
     path: /swapfile
   register: swapfile_stat
@@ -43,18 +43,18 @@
       - "target_mb={{ swap_size_mb }}"
       - "action={{ 'none (already correct)' if (swapfile_stat.stat.exists and swapfile_stat.stat.size == swap_size_mb | int * 1024 * 1024) else ('resize' if swapfile_stat.stat.exists else 'create') }}"
 
-- name: Set fact — swap needs creation or resize
+- name: "APPLY: Set fact — swap needs creation or resize"
   ansible.builtin.set_fact:
     swap_create: "{{ (not swapfile_stat.stat.exists) or (swapfile_stat.stat.size != (swap_size_mb | int * 1024 * 1024)) }}"
 
-- name: Deactivate swap for resize
+- name: "APPLY: Deactivate swap for resize"
   ansible.builtin.command:
     cmd: swapoff /swapfile
   when:
     - swap_create | bool
     - ansible_swaptotal_mb > 0
 
-- name: Remove swapfile for resize
+- name: "APPLY: Remove swapfile for resize"
   ansible.builtin.file:
     path: /swapfile
     state: absent
@@ -62,12 +62,12 @@
     - swap_create | bool
     - swapfile_stat.stat.exists
 
-- name: Allocate swap file
+- name: "APPLY: Allocate swap file"
   ansible.builtin.command:
     cmd: "fallocate -l {{ swap_size_mb }}M /swapfile"
   when: swap_create | bool
 
-- name: Set swap file permissions
+- name: "APPLY: Set swap file permissions"
   ansible.builtin.file:
     path: /swapfile
     owner: root
@@ -75,30 +75,30 @@
     mode: '0600'
   when: swap_create | bool
 
-- name: Format swap file
+- name: "APPLY: Format swap file"
   ansible.builtin.command:
     cmd: mkswap /swapfile
   when: swap_create | bool
 
-- name: Enable swap
+- name: "APPLY: Enable swap"
   ansible.builtin.command:
     cmd: swapon /swapfile
   when: swap_create | bool
 
-- name: Add swap to /etc/fstab
+- name: "APPLY: Add swap to /etc/fstab"
   ansible.builtin.lineinfile:
     path: /etc/fstab
     line: '/swapfile none swap sw 0 0'
     state: present
 
-- name: Set vm.swappiness (use RAM first, swap only under pressure)
+- name: "APPLY: Set vm.swappiness (use RAM first, swap only under pressure)"
   ansible.posix.sysctl:
     name: vm.swappiness
     value: '10'
     state: present
     reload: true
 
-- name: Set vm.vfs_cache_pressure
+- name: "APPLY: Set vm.vfs_cache_pressure"
   ansible.posix.sysctl:
     name: vm.vfs_cache_pressure
     value: '50'

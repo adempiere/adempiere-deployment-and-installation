@@ -36,6 +36,16 @@ adempiere_username: your-admin-username
 # Must match what is already configured on the servers after serversconf has run.
 custom_sshport: 10099
 
+# WireGuard VPN listen port (UDP).
+# This value is distributed to all POS clients as the server endpoint port.
+# Changing it after POS clients are configured requires updating all client configs.
+wireguard_port: 51820
+
+# WireGuard server VPN interface address (with prefix length).
+# Defines the server's address inside the VPN subnet.
+# POS clients receive addresses from the same subnet (e.g. 10.8.0.2, 10.8.0.3 ...).
+wireguard_server_address: 10.8.0.1/24
+
 # Base domain for routing and TLS certificates.
 # Used by deploy-traefik.yml to configure Traefik routing rules and the Let's Encrypt certificate.
 dns_domain: your-domain.example.com

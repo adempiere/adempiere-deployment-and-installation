@@ -37,7 +37,7 @@
 ##
 ---
 # tasks file for roles/serversconf
-- name: Update apt cache
+- name: "APPLY: Update apt cache"
   ansible.builtin.apt:
     update_cache: yes
 
@@ -45,7 +45,7 @@
   ansible.builtin.debug:
     msg: "target={{ inventory_hostname }} | installing 35 utility packages"
 
-- name: Install basic packages
+- name: "APPLY: Install basic packages"
   ansible.builtin.package:
     name:
       - apt-listchanges
@@ -92,7 +92,7 @@
   ansible.builtin.debug:
     msg: "locale={{ server_locale }}"
 
-- name: Ensure a locale exists
+- name: "APPLY: Ensure a locale exists"
   locale_gen:
     name: "{{ server_locale }}"
     state: present
@@ -101,7 +101,7 @@
   ansible.builtin.debug:
     msg: "timezone={{ timezone }}"
 
-- name: Set timezone
+- name: "APPLY: Set timezone"
   community.general.timezone:
     name: "{{ timezone }}"
 
@@ -109,7 +109,7 @@
   ansible.builtin.debug:
     msg: "hostname={{ server_hostname }}"
 
-- name: Set hostname
+- name: "APPLY: Set hostname"
   ansible.builtin.hostname:
     name: "{{ server_hostname }}"
 
@@ -117,7 +117,7 @@
   ansible.builtin.debug:
     msg: "user={{ adempiere_username }} | shell=/bin/bash | home=/home/{{ adempiere_username }}"
 
-- name: "Create user"
+- name: "APPLY: Create user"
   user:
     name: "{{ adempiere_username }}"
     password: "{{ your_password }}"
@@ -127,7 +127,7 @@
   ansible.builtin.debug:
     msg: "user={{ adempiere_username }} | group=sudo"
 
-- name: Add user to sudo group
+- name: "APPLY: Add user to sudo group"
   user:
     name: "{{ adempiere_username }}"  # Replace with the same adempiere_username
     groups: sudo  # On Debian/Ubuntu; for CentOS/RHEL, use 'wheel'
@@ -137,7 +137,7 @@
   ansible.builtin.debug:
     msg: "file=/etc/sudoers | user={{ adempiere_username }} | rule=NOPASSWD:ALL"
 
-- name: Allow passwordless sudo for the user (Debian/Ubuntu)
+- name: "APPLY: Allow passwordless sudo for the user (Debian/Ubuntu)"
   lineinfile:
     path: /etc/sudoers
     state: present
@@ -149,7 +149,7 @@
   ansible.builtin.debug:
     msg: "dest=/root/.bashrc and /home/{{ adempiere_username }}/.bashrc"
 
-- name: Create bashrc
+- name: "APPLY: Create bashrc"
   template:
     src: templates/bashrc.j2
     dest: "{{ item.home }}/.bashrc"
@@ -164,7 +164,7 @@
   ansible.builtin.debug:
     msg: "users=root,{{ adempiere_username }} | source=roles/serversconf/files/public_keys/present/admin/"
 
-- name: Add ADMIN ssh-keys
+- name: "APPLY: Add ADMIN ssh-keys"
   authorized_key:
     user: "{{ item[0] }}"
     state: present
@@ -178,7 +178,7 @@
   ansible.builtin.debug:
     msg: "dest=/etc/apt/apt.conf.d/50unattended-upgrades and 02periodic"
 
-- name: Create unattended-upgrades configuration files
+- name: "APPLY: Create unattended-upgrades configuration files"
   template:
     src: "{{item.src}}"
     dest: "{{item.dest}}"
@@ -193,7 +193,7 @@
   ansible.builtin.debug:
     msg: "path=/etc/systemd/system/ssh.socket.d | mode=0755"
 
-- name: Create systemd override directory
+- name: "APPLY: Create systemd override directory"
   ansible.builtin.file:
     path: /etc/systemd/system/ssh.socket.d
     state: directory
@@ -203,7 +203,7 @@
   ansible.builtin.debug:
     msg: "port={{ custom_sshport }} | dest=/etc/systemd/system/ssh.socket.d/override.conf"
 
-- name: Override systemd socket to new port
+- name: "APPLY: Override systemd socket to new port"
   ansible.builtin.template:
     src: override.conf.j2
     dest: /etc/systemd/system/ssh.socket.d/override.conf
@@ -213,7 +213,7 @@
   ansible.builtin.debug:
     msg: "dest=/etc/ssh/sshd_config.d/01-hardening.conf | PasswordAuthentication=no | PermitRootLogin=no"
 
-- name: Deploy SSH hardening override (wins over cloud-init and hosting provider defaults)
+- name: "APPLY: Deploy SSH hardening override (wins over cloud-init and hosting provider defaults)"
   ansible.builtin.template:
     src: 01-hardening.conf.j2
     dest: /etc/ssh/sshd_config.d/01-hardening.conf
@@ -226,7 +226,7 @@
   ansible.builtin.debug:
     msg: "file=/etc/ssh/sshd_config | port={{ custom_sshport }} | PasswordAuthentication=no | PermitRootLogin=no | MaxAuthTries=3"
 
-- name: SSH hardening
+- name: "APPLY: SSH hardening"
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: "{{ item.regexp }}"
@@ -250,28 +250,28 @@
   ansible.builtin.debug:
     msg: "file=/etc/ssh/sshd_config | setting HostKeyAlgorithms, KexAlgorithms, Ciphers, MACs"
 
-- name: Set secure HostKeyAlgorithms
+- name: "APPLY: Set secure HostKeyAlgorithms"
   lineinfile:
     path: /etc/ssh/sshd_config
     insertafter: '^#RekeyLimit default none'
     line: 'HostKeyAlgorithms ssh-ed25519,rsa-sha2-512,rsa-sha2-256'
     state: present
 
-- name: Set secure KexAlgorithms
+- name: "APPLY: Set secure KexAlgorithms"
   lineinfile:
     path: /etc/ssh/sshd_config
     insertafter: '^#RekeyLimit default none'
     line: 'KexAlgorithms curve25519-sha256@libssh.org,curve25519-sha256,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512,diffie-hellman-group14-sha256,diffie-hellman-group-exchange-sha256'
     state: present
 
-- name: Set secure Ciphers
+- name: "APPLY: Set secure Ciphers"
   lineinfile:
     path: /etc/ssh/sshd_config
     insertafter: '^#RekeyLimit default none'
     line: 'Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr'
     state: present
 
-- name: Set secure MACs
+- name: "APPLY: Set secure MACs"
   lineinfile:
     path: /etc/ssh/sshd_config
     insertafter: '^#RekeyLimit default none'

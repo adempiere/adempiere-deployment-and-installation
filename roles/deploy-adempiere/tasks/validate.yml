@@ -2,7 +2,7 @@
   ansible.builtin.debug:
     msg: "checking {{ adempiere_container_filter }}.postgresql | expected: running"
 
-- name: Check postgresql is running
+- name: "APPLY: Check postgresql is running"
   ansible.builtin.command: >
     docker inspect -f "{{'{{'}}.State.Status{{'}}'}}"
     {{ adempiere_container_filter }}.postgresql
@@ -14,7 +14,7 @@
   ansible.builtin.debug:
     msg: "checking {{ adempiere_container_filter }}.zk | expected: running"
 
-- name: Check ZK is running
+- name: "APPLY: Check ZK is running"
   ansible.builtin.command: >
     docker inspect -f "{{'{{'}}.State.Status{{'}}'}}"
     {{ adempiere_container_filter }}.zk
@@ -22,6 +22,6 @@
   changed_when: false
   failed_when: zk_validate.rc != 0 or zk_validate.stdout | trim != "running"
 
-- name: Report OK if all services look healthy
+- name: "INFO: Report OK if all services look healthy"
   ansible.builtin.debug:
     msg: "OK: postgresql=running, zk=running"

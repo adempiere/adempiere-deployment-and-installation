@@ -1,0 +1,6 @@
+#SPDX-License-Identifier: MIT-0
+---
+# Fallback defaults — overridden by group_vars/BackEnd.yml and group_vars/all/vars.yml.
+wireguard_enabled: false          # safe fallback; real value set in group_vars/BackEnd.yml
+wireguard_port: 51820             # real value set in group_vars/all/vars.yml
+wireguard_server_address: 10.8.0.1/24  # VPN interface address; real value in group_vars/all/vars.yml

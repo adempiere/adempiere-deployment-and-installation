@@ -14,7 +14,7 @@
       - "database : {{ adempiere_db }} | owner={{ adempiere_owner }} | superuser={{ pg_superuser }}"
       - "keep_restore_file: {{ keep_restore_file }}"
 
-- name: Derive dump filename from backup filename
+- name: "APPLY: Derive dump filename from backup filename"
   ansible.builtin.set_fact:
     restore_dump_filename: >-
       {{
@@ -27,12 +27,12 @@
   ansible.builtin.debug:
     msg: "src={{ restore_local_dir }}/{{ restore_backup_filename }} | dest={{ restore_remote_backup_dir }}/{{ restore_backup_filename }}"
 
-- name: Check if backup archive already exists on backend
+- name: "APPLY: Check if backup archive already exists on backend"
   ansible.builtin.stat:
     path: "{{ restore_remote_backup_dir }}/{{ restore_backup_filename }}"
   register: archive_stat
 
-- name: "Copy backup file from control node to backend: {{ restore_backup_filename }}"
+- name: "APPLY: Copy backup file from control node to backend: {{ restore_backup_filename }}"
   ansible.builtin.copy:
     src: "{{ restore_local_dir }}/{{ restore_backup_filename }}"
     dest: "{{ restore_remote_backup_dir }}/{{ restore_backup_filename }}"
@@ -49,12 +49,12 @@
       {{ restore_remote_backup_dir }}/{{ restore_backup_filename }}
       | produces: {{ restore_remote_backup_dir }}/{{ restore_dump_filename }}
 
-- name: Check if dump file already exists on backend
+- name: "APPLY: Check if dump file already exists on backend"
   ansible.builtin.stat:
     path: "{{ restore_remote_backup_dir }}/{{ restore_dump_filename }}"
   register: dump_stat
 
-- name: Decompress backup file (tar.gz)
+- name: "APPLY: Decompress backup file (tar.gz)"
   ansible.builtin.command: >
     tar -xzf {{ restore_remote_backup_dir }}/{{ restore_backup_filename }}
     -C {{ restore_remote_backup_dir }}
@@ -63,7 +63,7 @@
     - restore_backup_filename.endswith('.tar.gz')
   become: true
 
-- name: Decompress backup file (gz)
+- name: "APPLY: Decompress backup file (gz)"
   ansible.builtin.command: >
     gzip -dk {{ restore_remote_backup_dir }}/{{ restore_backup_filename }}
   when:
@@ -71,12 +71,12 @@
     - not restore_backup_filename.endswith('.tar.gz')
   become: true
 
-- name: Verify dump file exists after decompression
+- name: "APPLY: Verify dump file exists after decompression"
   ansible.builtin.stat:
     path: "{{ restore_remote_backup_dir }}/{{ restore_dump_filename }}"
   register: dump_verify
 
-- name: Fail if dump file is missing
+- name: "APPLY: Fail if dump file is missing"
   ansible.builtin.fail:
     msg: "Dump file not found after decompression: {{ restore_remote_backup_dir }}/{{ restore_dump_filename }}"
   when: not dump_verify.stat.exists
@@ -85,7 +85,7 @@
   ansible.builtin.debug:
     msg: "DROP DATABASE IF EXISTS {{ adempiere_db }} | CREATE DATABASE {{ adempiere_db }} WITH OWNER {{ adempiere_owner }} | container={{ pg_container }}"
 
-- name: Drop adempiere database
+- name: "APPLY: Drop adempiere database"
   ansible.builtin.command:
     argv:
       - docker
@@ -101,7 +101,7 @@
   become: true
   changed_when: true
 
-- name: Create adempiere database
+- name: "APPLY: Create adempiere database"
   ansible.builtin.command:
     argv:
       - docker
@@ -117,7 +117,7 @@
   become: true
   changed_when: true
 
-- name: Set search_path on adempiere database
+- name: "APPLY: Set search_path on adempiere database"
   ansible.builtin.command:
     argv:
       - docker
@@ -137,7 +137,7 @@
   ansible.builtin.debug:
     msg: "user={{ adempiere_owner }} | LOGIN,CREATEDB,NOSUPERUSER | container={{ pg_container }}"
 
-- name: Create adempiere database user if not exists
+- name: "APPLY: Create adempiere database user if not exists"
   ansible.builtin.command:
     argv:
       - docker
@@ -157,7 +157,7 @@
   ansible.builtin.debug:
     msg: "db={{ adempiere_db }} | file={{ restore_container_backup_dir }}/{{ restore_dump_filename }} | container={{ pg_container }}"
 
-- name: Restore SQL dump into adempiere database
+- name: "APPLY: Restore SQL dump into adempiere database"
   ansible.builtin.command:
     argv:
       - docker
@@ -178,7 +178,7 @@
     msg: "src={{ post_restore_sql_local_dir }}/{{ post_restore_sql_filename }} | container file={{ restore_container_backup_dir }}/03-Misc-SQLs/{{ post_restore_sql_filename }} | db={{ adempiere_db }}"
   when: post_restore_sql_enabled | bool
 
-- name: Ensure post-restore SQL script directory exists
+- name: "APPLY: Ensure post-restore SQL script directory exists"
   ansible.builtin.file:
     path: "{{ post_restore_sql_remote_dir }}"
     state: directory
@@ -188,7 +188,7 @@
   when: post_restore_sql_enabled | bool
   become: true
 
-- name: Copy post-restore SQL script to backend
+- name: "APPLY: Copy post-restore SQL script to backend"
   ansible.builtin.copy:
     src: "{{ post_restore_sql_local_dir }}/{{ post_restore_sql_filename }}"
     dest: "{{ post_restore_sql_remote_dir }}/{{ post_restore_sql_filename }}"
@@ -198,7 +198,7 @@
   when: post_restore_sql_enabled | bool
   become: true
 
-- name: Execute post-restore SQL script
+- name: "APPLY: Execute post-restore SQL script"
   ansible.builtin.command:
     argv:
       - docker
@@ -215,7 +215,7 @@
   changed_when: true
   when: post_restore_sql_enabled | bool
 
-- name: Remove post-restore SQL script from backend
+- name: "APPLY: Remove post-restore SQL script from backend"
   ansible.builtin.file:
     path: "{{ post_restore_sql_remote_dir }}/{{ post_restore_sql_filename }}"
     state: absent
@@ -226,13 +226,13 @@
   ansible.builtin.debug:
     msg: "remove dump: {{ restore_remote_backup_dir }}/{{ restore_dump_filename }} | remove archive: {{ not keep_restore_file }}"
 
-- name: Remove decompressed dump file
+- name: "APPLY: Remove decompressed dump file"
   ansible.builtin.file:
     path: "{{ restore_remote_backup_dir }}/{{ restore_dump_filename }}"
     state: absent
   become: true
 
-- name: Remove backup archive
+- name: "APPLY: Remove backup archive"
   ansible.builtin.file:
     path: "{{ restore_remote_backup_dir }}/{{ restore_backup_filename }}"
     state: absent

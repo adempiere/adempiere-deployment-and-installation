@@ -1,4 +1,4 @@
-- name: Check if nginx gateway exited (first-run timing issue)
+- name: "APPLY: Check if nginx gateway exited (first-run timing issue)"
   ansible.builtin.command: >
     docker inspect -f "{{'{{'}}.State.ExitCode{{'}}'}}"
     {{ adempiere_container_filter }}.nginx-ui-gateway
@@ -11,7 +11,7 @@
     msg: "nginx exit code={{ nginx_exit.stdout | trim }} | restarting {{ adempiere_container_filter }}.nginx-ui-gateway"
   when: nginx_exit.stdout | trim == "1"
 
-- name: Restart nginx gateway if it exited on first run
+- name: "APPLY: Restart nginx gateway if it exited on first run"
   ansible.builtin.command: docker restart {{ adempiere_container_filter }}.nginx-ui-gateway
   when: nginx_exit.stdout | trim == "1"
   changed_when: true
@@ -21,7 +21,7 @@
     msg: "waiting for {{ adempiere_container_filter }}.nginx-ui-gateway to be running | retries=15 | delay=5s"
   when: nginx_exit.stdout | trim == "1"
 
-- name: Wait until nginx gateway is running
+- name: "APPLY: Wait until nginx gateway is running"
   ansible.builtin.command: >
     docker inspect -f "{{'{{'}}.State.Status{{'}}'}}"
     {{ adempiere_container_filter }}.nginx-ui-gateway

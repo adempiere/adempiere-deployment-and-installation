@@ -5,14 +5,14 @@
   ansible.builtin.debug:
     msg: "distribution={{ ansible_facts['distribution'] }} | os_family={{ ansible_facts['os_family'] }}"
 
-- name: Validate supported OS (Debian/Ubuntu)
+- name: "APPLY: Validate supported OS (Debian/Ubuntu)"
   ansible.builtin.assert:
     that:
       - ansible_facts['os_family'] == 'Debian'
       - ansible_facts['distribution'] in ['Debian', 'Ubuntu']
     fail_msg: "This role supports only Debian/Ubuntu. Detected: {{ ansible_facts['distribution'] }}"
 
-- name: Set Docker repo base URL and GPG URL depending on distro
+- name: "APPLY: Set Docker repo base URL and GPG URL depending on distro"
   ansible.builtin.set_fact:
     docker_repo_base: "https://download.docker.com/linux/{{ 'ubuntu' if ansible_facts['distribution'] == 'Ubuntu' else 'debian' }}"
     docker_gpg_url: "https://download.docker.com/linux/{{ 'ubuntu' if ansible_facts['distribution'] == 'Ubuntu' else 'debian' }}/gpg"
@@ -27,7 +27,7 @@
   ansible.builtin.debug:
     msg: "repo={{ docker_repo_base }} | gpg={{ docker_gpg_url }} | arch={{ docker_arch }}"
 
-- name: Update apt cache
+- name: "APPLY: Update apt cache"
   ansible.builtin.apt:
     update_cache: yes
 
@@ -35,7 +35,7 @@
   ansible.builtin.debug:
     msg: "packages=bc,curl,expect,git,ca-certificates,python3-debian"
 
-- name: Ensure dependencies are installed
+- name: "APPLY: Ensure dependencies are installed"
   ansible.builtin.package:
     name:
         - bc
@@ -50,7 +50,7 @@
   ansible.builtin.debug:
     msg: "path=/etc/apt/keyrings | mode=0755"
 
-- name: Create Docker GPG key directory
+- name: "APPLY: Create Docker GPG key directory"
   ansible.builtin.file:
     path: /etc/apt/keyrings
     state: directory
@@ -60,7 +60,7 @@
   ansible.builtin.debug:
     msg: "url={{ docker_gpg_url }} | dest=/etc/apt/keyrings/docker.asc"
 
-- name: Download Docker's official GPG key
+- name: "APPLY: Download Docker's official GPG key"
   ansible.builtin.get_url:
     url: "{{ docker_gpg_url }}"
     dest: /etc/apt/keyrings/docker.asc
@@ -70,7 +70,7 @@
   ansible.builtin.debug:
     msg: "repo={{ docker_repo_base }} | suite={{ ansible_facts['distribution_release'] }} | arch={{ docker_arch }}"
 
-- name: Add Docker repository to Apt sources
+- name: "APPLY: Add Docker repository to Apt sources"
   ansible.builtin.deb822_repository:
     name: docker
     types: [deb]
@@ -81,7 +81,7 @@
     architectures: "{{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else ansible_facts['architecture'] }}"
     state: present
 
-- name: Update apt cache after adding Docker repository
+- name: "APPLY: Update apt cache after adding Docker repository"
   ansible.builtin.apt:
     update_cache: yes
 
@@ -89,13 +89,13 @@
   ansible.builtin.debug:
     msg: "searching apt-cache madison for Docker 5:28.x"
 
-- name: Find latest Docker 28.x version available in apt
+- name: "APPLY: Find latest Docker 28.x version available in apt"
   ansible.builtin.shell: >
     apt-cache madison docker-ce | grep ' 5:28\.' | head -1 | awk '{print $3}'
   register: docker_28_version
   changed_when: false
 
-- name: Fail if no Docker 28.x package is available
+- name: "APPLY: Fail if no Docker 28.x package is available"
   ansible.builtin.fail:
     msg: "No Docker 28.x package found in the configured apt repositories. Check that the Docker repo is reachable and the cache is up to date."
   when: docker_28_version.stdout | trim == ''
@@ -104,7 +104,7 @@
   ansible.builtin.debug:
     msg: "version={{ docker_28_version.stdout | trim }} | packages=docker-ce,docker-ce-cli,containerd.io,buildx-plugin,compose-plugin"
 
-- name: Install Docker 28.x and Docker Compose
+- name: "APPLY: Install Docker 28.x and Docker Compose"
   ansible.builtin.package:
     name:
         - "docker-ce={{ docker_28_version.stdout | trim }}"
@@ -118,7 +118,7 @@
   ansible.builtin.debug:
     msg: "holding docker-ce and docker-ce-cli at 28.x to prevent upgrade to 29+"
 
-- name: Hold Docker packages at 28.x to prevent automatic upgrade to 29+
+- name: "APPLY: Hold Docker packages at 28.x to prevent automatic upgrade to 29+"
   ansible.builtin.dpkg_selections:
     name: "{{ item }}"
     selection: hold
@@ -130,7 +130,7 @@
   ansible.builtin.debug:
     msg: "service=docker | state=started | enabled=yes"
 
-- name: Ensure Docker service is enabled and started
+- name: "APPLY: Ensure Docker service is enabled and started"
   ansible.builtin.service:
     name: docker
     state: started
@@ -140,7 +140,7 @@
   ansible.builtin.debug:
     msg: "path=/docker | mode=0755"
 
-- name: Create docke directory if it does not exist
+- name: "APPLY: Create docker directory if it does not exist"
   ansible.builtin.file:
     path: /docker
     state: directory
@@ -150,7 +150,7 @@
   ansible.builtin.debug:
     msg: "group=docker"
 
-- name: Ensure docker group exists
+- name: "APPLY: Ensure docker group exists"
   ansible.builtin.group:
     name: docker
     state: present

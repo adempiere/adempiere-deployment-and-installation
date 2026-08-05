@@ -5,7 +5,7 @@
   ansible.builtin.debug:
     msg: "host={{ ansible_host }} | dest=~/.ssh/known_hosts"
 
-- name: Add host fingerprint to known_hosts
+- name: "APPLY: Add host fingerprint to known_hosts"
   ansible.builtin.known_hosts:
     name: "{{ ansible_host }}"
     key: "{{ lookup('pipe', 'ssh-keyscan -H ' + ansible_host) }}"
@@ -15,7 +15,7 @@
   ansible.builtin.debug:
     msg: "user={{ ansible_user }} | key=ssh_keys/{{ key_name }}.pub"
 
-- name: Set authorized key on remote
+- name: "APPLY: Set authorized key on remote"
   authorized_key:
     user: "{{ ansible_user }}"
     state: present

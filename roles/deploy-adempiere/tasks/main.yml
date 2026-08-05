@@ -44,7 +44,7 @@
   ansible.builtin.debug:
     msg: "host={{ inventory_hostname }} | gathering network subset"
 
-- name: Gather network facts
+- name: "APPLY: Gather network facts"
   ansible.builtin.setup:
     gather_subset:
       - network
@@ -53,7 +53,7 @@
   ansible.builtin.debug:
     msg: "path={{ install_path }} | owner={{ be_user }} | mode=0755"
 
-- name: Ensure development directory exists
+- name: "APPLY: Ensure development directory exists"
   ansible.builtin.file:
     path: "{{ install_path }}"
     state: directory
@@ -66,7 +66,7 @@
   ansible.builtin.debug:
     msg: "repo={{ repo_url }} | branch={{ repo_version }} | dest={{ install_path }}/adempiere-ui-gateway"
 
-- name: Clone or update adempiere-ui-gateway repository
+- name: "APPLY: Clone or update adempiere-ui-gateway repository"
   ansible.builtin.git:
     repo: "{{ repo_url }}"
     dest: "{{ install_path }}/adempiere-ui-gateway"
@@ -80,7 +80,7 @@
   ansible.builtin.debug:
     msg: "dest={{ install_path }}/adempiere-ui-gateway/docker-compose/override.env | owner={{ be_user }} | mode=0600"
 
-- name: Generate override.env file
+- name: "APPLY: Generate override.env file"
   ansible.builtin.template:
     src: override.env.j2
     dest: "{{ install_path }}/adempiere-ui-gateway/docker-compose/override.env"
@@ -92,14 +92,14 @@
   ansible.builtin.debug:
     msg: "filter={{ adempiere_container_filter }}"
 
-- name: Check if ADempiere container is already running
+- name: "APPLY: Check if ADempiere container is already running"
   ansible.builtin.command: >
     docker ps --filter "name={{ adempiere_container_filter }}"
     --format "{{'{{'}}.Names{{'}}'}}"
   register: container_running
   changed_when: false
 
-- name: Import tasks
+- name: "APPLY: Start stack and ensure nginx is healthy (first run)"
   ansible.builtin.include_tasks:
     file: "{{ item }}"
   with_items:
@@ -107,7 +107,7 @@
     - ensure-healthy.yml
   when: container_running.stdout | trim == ""
 
-- name: Import tasks
+- name: "APPLY: Validate container health and report status"
   ansible.builtin.include_tasks:
     file: "{{ item }}"
   with_items:

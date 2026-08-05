@@ -5,7 +5,7 @@
   ansible.builtin.debug:
     msg: "target={{ inventory_hostname }} | packages=git,fonts-powerline,fzf"
 
-- name: Install vim
+- name: "APPLY: Install vim"
   ansible.builtin.package:
     name:
         # - vim-enhanced
@@ -19,7 +19,7 @@
   ansible.builtin.debug:
     msg: "dirs={{ vim_dir }}, {{ vim_dir }}/autoload, {{ vim_dir }}/bundle | mode=0750"
 
-- name: Ensure .vim/{autoload,bundle} directory exists
+- name: "APPLY: Ensure .vim/{autoload,bundle} directory exists"
   file:
     path: "{{ item }}"
     state: directory
@@ -34,7 +34,7 @@
   ansible.builtin.debug:
     msg: "dest={{ vim_dir }}/autoload/pathogen.vim"
 
-- name: Ensure Pathogen is in place
+- name: "APPLY: Ensure Pathogen is in place"
   get_url:
     dest: "{{ vim_dir }}/autoload/pathogen.vim"
     url: https://tpo.pe/pathogen.vim
@@ -43,7 +43,7 @@
   ansible.builtin.debug:
     msg: "dest={{ vim_dir }}/bundle/ | plugins=vim-airline,nerdtree,fzf-vim,vim-gitgutter,vim-fugitive,vim-floaterm"
 
-- name: Deploy plugins
+- name: "APPLY: Deploy plugins"
   git:
     dest: "{{ vim_dir }}/bundle/{{ item.name }}"
     repo: "{{ item.url }}"
@@ -68,7 +68,7 @@
   ansible.builtin.debug:
     msg: "dest={{ vimrc }}"
 
-- name: Ensure .vimrc config in place
+- name: "APPLY: Ensure .vimrc config in place"
   copy:
     src: vimrc
     dest: "{{ vimrc }}"
