@@ -1,38 +1,80 @@
-Role Name
-=========
+# adempiere-restoredb
 
-A brief description of the role goes here.
+Restores a PostgreSQL database backup into the ADempiere Docker container stack.
 
-Requirements
-------------
+All database operations run inside the PostgreSQL container via `docker exec`, using Unix socket trust authentication — no TCP port needs to be open.
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+---
 
-Role Variables
---------------
+## What it does
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+1. Derives the dump filename from the backup filename (format auto-detected from extension).
+2. Copies the backup archive from the control node to the BackEnd server.
+3. Decompresses the archive if needed (skipped for uncompressed `.backup` files).
+4. Drops and recreates the `adempiere` database with the correct owner.
+5. Ensures the `adempiere` database user exists.
+6. Restores the dump using `psql` (SQL formats) or `pg_restore` (custom format).
+7. Optionally executes a post-restore SQL script.
+8. Cleans up: always removes the decompressed dump file; removes the archive only if `keep_restore_file: false`.
 
-Dependencies
-------------
+---
 
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
+## Supported backup formats
 
-Example Playbook
-----------------
+| Filename pattern | Decompress step | Restore tool |
+|---|---|---|
+| `*.sql.gz` | `gzip -dk` | `psql -f` |
+| `*.tar.gz` | `tar -xzf` | `psql -f` |
+| `*.backup.gz` | `gzip -dk` | `pg_restore -F c` |
+| `*.backup` | none | `pg_restore -F c` |
 
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
+The format is detected automatically from the filename extension. No variable needs to be set.
 
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
+---
 
-License
--------
+## Variables
 
-BSD
+All variables are set in `group_vars/all/vars.yml` and `group_vars/all/vault.yml`. None are defined in `defaults/main.yml`.
 
-Author Information
-------------------
+### Required
 
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
+| Variable | Description |
+|---|---|
+| `restore_backup_filename` | Filename of the backup archive (e.g. `20260904-SAPROD.backup`) |
+| `restore_local_dir` | Directory on the control node holding the backup file |
+| `pg_superuser` | PostgreSQL superuser inside the container (typically `postgres`) |
+| `adempiere_db` | Name of the ADempiere database (typically `adempiere`) |
+| `adempiere_owner` | Owner role of the ADempiere database (typically `adempiere`) |
+| `pg_container` | Docker container name for PostgreSQL (e.g. `adempiere-ui-gateway.postgresql`) |
+| `install_path` | Base installation path on the server (e.g. `/opt/development`) |
+| `adempiere_db_password` | *(vault)* Password for the `adempiere` database role |
+
+### Optional
+
+| Variable | Default | Description |
+|---|---|---|
+| `restore_remote_backup_dir` | `{{ install_path }}/adempiere-ui-gateway/docker-compose/postgresql/postgres_backups` | Destination directory on the server |
+| `restore_container_backup_dir` | `/home/adempiere/postgres_backups` | Path inside the container (must map to `restore_remote_backup_dir`) |
+| `keep_restore_file` | `true` | Keep the backup archive on the server after restore |
+| `post_restore_sql_enabled` | `false` | Run a SQL script after restore |
+| `post_restore_sql_filename` | — | Filename of the post-restore SQL script |
+| `post_restore_sql_local_dir` | — | Directory on the control node holding the SQL script |
+| `post_restore_sql_remote_dir` | `{{ install_path }}/…/03-Misc-SQLs` | Destination directory on the server for the SQL script |
+
+---
+
+## Usage
+
+This role is invoked by `restore-db.sh`. Do not call it directly.
+
+```bash
+cd /data2/entwicklung/shw_repositories_2024/adempiere-deployment-and-installation_SHW
+./check-config.sh restore-db   # validate before running
+./restore-db.sh
+```
+
+---
+
+## License
+
+MIT-0

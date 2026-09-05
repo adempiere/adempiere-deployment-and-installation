@@ -21,6 +21,22 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 format_duration() { local s=$1; printf '%dm %ds' $((s / 60)) $((s % 60)); }
+annotate_backend_hosts() {
+    local hosts_yml="$SCRIPT_DIR/inventories/hosts.yml"
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        local ip ip_regex comment
+        ip=$(echo "$line" | awk '{print $NF}')
+        ip_regex="${ip//./\\.}"
+        comment=$(grep -E "^[[:space:]]+ansible_host:[[:space:]]+${ip_regex}[[:space:]]*#" \
+                      "$hosts_yml" 2>/dev/null | sed 's/.*#[[:space:]]*//' | head -1 || true)
+        if [[ -n "$comment" ]]; then
+            echo "$line  ($comment)"
+        else
+            echo "$line"
+        fi
+    done <<< "$1"
+}
 
 # --- Argument parsing (before any ansible call so --help is instant) ---
 
@@ -42,14 +58,15 @@ WHAT IT DOES:
   3  Confirmation    — displays a full summary (file, format, destination, container,
                        database, post-restore SQL status) and asks for YES.
   4  Upload          — copies the backup archive to the BackEnd server.
-  5  Decompress      — auto-detects format from the filename:
-                         *.backup.gz  →  gzip -dk  →  *.backup  (plain SQL)
-                         *.sql.gz     →  gzip -dk  →  *.sql     (plain SQL)
-                         *.tar.gz     →  tar -xzf  →  *.sql     (plain SQL)
+  5  Decompress      — auto-detects format from the filename extension:
+                         *.sql.gz     →  gzip -dk  →  *.sql     →  psql -f
+                         *.tar.gz     →  tar -xzf  →  *.sql     →  psql -f
+                         *.backup.gz  →  gzip -dk  →  *.backup  →  pg_restore -Fc
+                         *.backup     →  no decompress            →  pg_restore -Fc
   6  Drop & recreate — drops the adempiere database and recreates it with the
                        correct owner.
-  7  Restore         — runs psql inside the PostgreSQL container via docker exec
-                       (no TCP port needs to be open).
+  7  Restore         — runs psql or pg_restore inside the PostgreSQL container
+                       via docker exec (no TCP port needs to be open).
   8  Post-restore SQL — if post_restore_sql_enabled: true, uploads and executes
                         the specified SQL script.
   9  Cleanup         — removes the decompressed dump file; keeps or removes the
@@ -114,6 +131,7 @@ except Exception:
 " 2>/dev/null || true)
 
 BACKEND_COUNT=$(echo "$BACKEND_HOSTS" | grep -c "→" 2>/dev/null || echo "0")
+BACKEND_HOSTS_DISPLAY=$(annotate_backend_hosts "$BACKEND_HOSTS")
 
 # --- Read variables from vars.yml ---
 
@@ -124,6 +142,7 @@ read_var() {
   grep -E "^$1:" "$VARS_FILE" | head -1 | sed "s/^$1:[[:space:]]*//" | tr -d '"'"'"
 }
 
+PROJECT_NAME=$(read_var project_name)
 CUSTOM_SSHPORT=$(read_var custom_sshport)
 RESTORE_FILENAME=$(read_var restore_backup_filename)
 RESTORE_LOCAL_DIR=$(read_var restore_local_dir)
@@ -154,10 +173,16 @@ fi
 
 # Detect format from filename
 if [[ "$RESTORE_FILENAME" == *.tar.gz ]]; then
-  FORMAT="tar.gz"
+  FORMAT="tar.gz (SQL)  →  psql -f"
   DUMP_FILENAME="${RESTORE_FILENAME%.tar.gz}.sql"
+elif [[ "$RESTORE_FILENAME" == *.backup.gz ]]; then
+  FORMAT="gz (pg_dump -Fc)  →  pg_restore -Fc"
+  DUMP_FILENAME="${RESTORE_FILENAME%.gz}"
+elif [[ "$RESTORE_FILENAME" == *.backup ]]; then
+  FORMAT="pg_dump -Fc, uncompressed  →  pg_restore -Fc"
+  DUMP_FILENAME="$RESTORE_FILENAME"
 else
-  FORMAT="gz"
+  FORMAT="gz (SQL)  →  psql -f"
   DUMP_FILENAME="${RESTORE_FILENAME%.gz}"
 fi
 
@@ -178,6 +203,37 @@ if [[ ! -f "$RESTORE_LOCAL_DIR/$RESTORE_FILENAME" ]]; then
   echo "ERROR: Backup file not found on this control node:"
   echo "       $RESTORE_LOCAL_DIR/$RESTORE_FILENAME"
   exit 1
+fi
+
+# Extension check — fail early for unsupported formats
+if [[ "$RESTORE_FILENAME" != *.tar.gz && "$RESTORE_FILENAME" != *.backup.gz && \
+      "$RESTORE_FILENAME" != *.backup  && "$RESTORE_FILENAME" != *.sql.gz ]]; then
+  echo "ERROR: Unsupported backup file extension: $RESTORE_FILENAME"
+  echo "       Supported extensions: .sql.gz  .tar.gz  .backup.gz  .backup"
+  exit 1
+fi
+
+# Magic bytes check — verify the file content matches the extension
+if [[ "$RESTORE_FILENAME" == *.backup && "$RESTORE_FILENAME" != *.backup.gz ]]; then
+  # PostgreSQL custom-format files start with the 5-byte ASCII string "PGDMP"
+  _magic=$(head -c 5 "$RESTORE_LOCAL_DIR/$RESTORE_FILENAME" 2>/dev/null || true)
+  if [[ "$_magic" != "PGDMP" ]]; then
+    echo "ERROR: $RESTORE_FILENAME does not appear to be a PostgreSQL custom-format dump."
+    echo "       Expected PGDMP at the start of the file, got: $_magic"
+    exit 1
+  fi
+elif [[ "$RESTORE_FILENAME" == *.gz ]]; then
+  # All gzip files start with the 2-byte magic 0x1f 0x8b
+  _gz_ok=$(python3 -c "
+with open('$RESTORE_LOCAL_DIR/$RESTORE_FILENAME', 'rb') as f:
+    b = f.read(2)
+print('ok' if b == b'\x1f\x8b' else 'bad')
+" 2>/dev/null || echo "bad")
+  if [[ "$_gz_ok" != "ok" ]]; then
+    echo "ERROR: $RESTORE_FILENAME does not have a valid gzip header."
+    echo "       The file may be corrupt or have the wrong extension."
+    exit 1
+  fi
 fi
 
 if [[ "$POST_SQL_ENABLED" == "true" ]]; then
@@ -202,7 +258,7 @@ if [[ "$BACKEND_COUNT" -gt 1 ]]; then
   echo ""
   echo "  More than one BackEnd server is defined in the inventory:"
   echo ""
-  echo "$BACKEND_HOSTS"
+  echo "$BACKEND_HOSTS_DISPLAY"
   echo ""
   echo "  The restore will run on ALL servers listed above."
   echo "  This operation CANNOT be undone on any of them."
@@ -218,6 +274,15 @@ if [[ "$BACKEND_COUNT" -gt 1 ]]; then
   echo ""
 fi
 
+# --- Log setup ---
+
+LOG_DIR="$SCRIPT_DIR/logs"
+mkdir -p "$LOG_DIR"
+LOGFILE="$LOG_DIR/restore-db-$(date +%Y%m%d-%H%M%S).log"
+exec > >(tee -a "$LOGFILE") 2>&1
+echo "Output is logged to: $LOGFILE"
+echo ""
+
 # --- Confirmation prompt ---
 
 echo ""
@@ -225,13 +290,14 @@ echo "================================================================"
 echo "  ADempiere — Database Restore"
 echo "================================================================"
 echo ""
+echo "  Project      : $PROJECT_NAME"
 echo "  Source file  : $RESTORE_LOCAL_DIR/$RESTORE_FILENAME"
 echo "  Format       : $FORMAT  →  dump file: $DUMP_FILENAME"
 echo "  Destination  : $RESTORE_REMOTE_DIR/"
 echo "  Keep archive : $KEEP_RESTORE_FILE"
 echo ""
 echo "  Backend host(s) (from inventory):"
-echo "$BACKEND_HOSTS"
+echo "$BACKEND_HOSTS_DISPLAY"
 echo "  Container    : $PG_CONTAINER"
 echo "  Database     : $ADEMPIERE_DB  (owner: $ADEMPIERE_OWNER)"
 echo "  Superuser    : $PG_SUPERUSER  (via docker exec — no TCP auth)"
@@ -255,15 +321,6 @@ if [[ "$confirm" != "YES" ]]; then
   exit 1
 fi
 echo "================================================================"
-echo ""
-
-# --- Log setup ---
-
-LOG_DIR="$SCRIPT_DIR/logs"
-mkdir -p "$LOG_DIR"
-LOGFILE="$LOG_DIR/restore-db-$(date +%Y%m%d-%H%M%S).log"
-exec > >(tee -a "$LOGFILE") 2>&1
-echo "Output is logged to: $LOGFILE"
 echo ""
 
 # Pre-flight: refresh host keys for all BackEnd servers in known_hosts.

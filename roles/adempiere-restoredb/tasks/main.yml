@@ -3,16 +3,12 @@
 # tasks file for roles/adempiere-restoredb
 # All PostgreSQL operations run inside the container via docker exec, using Unix socket
 # trust auth — no TCP password authentication required.
-
-- name: "INFO: DB restore — configuration summary"
-  ansible.builtin.debug:
-    msg:
-      - "source   : {{ restore_local_dir }}/{{ restore_backup_filename }}"
-      - "dest     : {{ restore_remote_backup_dir }}/{{ restore_backup_filename }}"
-      - "format   : {{ 'tar.gz' if restore_backup_filename.endswith('.tar.gz') else 'gz' }} | dump file: {{ restore_backup_filename[:-7] + '.sql' if restore_backup_filename.endswith('.tar.gz') else restore_backup_filename[:-3] }}"
-      - "container: {{ pg_container }} | pg path: {{ restore_container_backup_dir }}"
-      - "database : {{ adempiere_db }} | owner={{ adempiere_owner }} | superuser={{ pg_superuser }}"
-      - "keep_restore_file: {{ keep_restore_file }}"
+#
+# Supported backup formats:
+#   *.sql.gz    — gzip-compressed plain SQL dump  → decompress → psql -f
+#   *.tar.gz    — tar+gzip plain SQL dump         → decompress → psql -f
+#   *.backup.gz — gzip-compressed pg_dump -Fc     → decompress → pg_restore -Fc
+#   *.backup    — uncompressed pg_dump -Fc        → no decompress → pg_restore -Fc
 
 - name: "APPLY: Derive dump filename from backup filename"
   ansible.builtin.set_fact:
@@ -21,7 +17,27 @@
         restore_backup_filename[:-7] + '.sql'
         if restore_backup_filename.endswith('.tar.gz')
         else restore_backup_filename[:-3]
+        if restore_backup_filename.endswith('.gz')
+        else restore_backup_filename
       }}
+
+- name: "APPLY: Detect backup format"
+  ansible.builtin.set_fact:
+    restore_is_custom_format: >-
+      {{
+        restore_dump_filename.endswith('.backup')
+      }}
+
+- name: "INFO: DB restore — configuration summary"
+  ansible.builtin.debug:
+    msg:
+      - "source   : {{ restore_local_dir }}/{{ restore_backup_filename }}"
+      - "dest     : {{ restore_remote_backup_dir }}/{{ restore_backup_filename }}"
+      - "format   : {{ 'custom (pg_dump -Fc) — no decompress' if not restore_backup_filename.endswith('.gz') and restore_is_custom_format else 'custom (pg_dump -Fc) — gz' if restore_is_custom_format else 'tar.gz (SQL)' if restore_backup_filename.endswith('.tar.gz') else 'gz (SQL)' }} | dump file: {{ restore_dump_filename }}"
+      - "restore  : {{ 'pg_restore -Fc' if restore_is_custom_format else 'psql -f' }}"
+      - "container: {{ pg_container }} | pg path: {{ restore_container_backup_dir }}"
+      - "database : {{ adempiere_db }} | owner={{ adempiere_owner }} | superuser={{ pg_superuser }}"
+      - "keep_restore_file: {{ keep_restore_file }}"
 
 - name: "INFO: Copy backup file"
   ansible.builtin.debug:
@@ -45,9 +61,9 @@
 - name: "INFO: Decompress backup file"
   ansible.builtin.debug:
     msg: >-
-      {{ 'tar -xzf' if restore_backup_filename.endswith('.tar.gz') else 'gzip -dk' }}
-      {{ restore_remote_backup_dir }}/{{ restore_backup_filename }}
-      | produces: {{ restore_remote_backup_dir }}/{{ restore_dump_filename }}
+      {{ 'tar -xzf' if restore_backup_filename.endswith('.tar.gz') else 'gzip -dk' if restore_backup_filename.endswith('.gz') else 'no decompression needed (pg_dump -Fc, uncompressed)' }}
+      {{ '' if not restore_backup_filename.endswith('.gz') else restore_remote_backup_dir + '/' + restore_backup_filename }}
+      {{ '' if not restore_backup_filename.endswith('.gz') else '| produces: ' + restore_remote_backup_dir + '/' + restore_dump_filename }}
 
 - name: "APPLY: Check if dump file already exists on backend"
   ansible.builtin.stat:
@@ -68,6 +84,7 @@
     gzip -dk {{ restore_remote_backup_dir }}/{{ restore_backup_filename }}
   when:
     - not dump_stat.stat.exists
+    - restore_backup_filename.endswith('.gz')
     - not restore_backup_filename.endswith('.tar.gz')
   become: true
 
@@ -155,9 +172,9 @@
 
 - name: "INFO: Restore dump (destructive — overwrites existing data)"
   ansible.builtin.debug:
-    msg: "db={{ adempiere_db }} | file={{ restore_container_backup_dir }}/{{ restore_dump_filename }} | container={{ pg_container }}"
+    msg: "db={{ adempiere_db }} | file={{ restore_container_backup_dir }}/{{ restore_dump_filename }} | container={{ pg_container }} | tool={{ 'pg_restore -Fc' if restore_is_custom_format else 'psql -f' }}"
 
-- name: "APPLY: Restore SQL dump into adempiere database"
+- name: "APPLY: Restore SQL dump into adempiere database (psql)"
   ansible.builtin.command:
     argv:
       - docker
@@ -172,6 +189,25 @@
       - "{{ restore_container_backup_dir }}/{{ restore_dump_filename }}"
   become: true
   changed_when: true
+  when: not restore_is_custom_format
+
+- name: "APPLY: Restore custom-format dump into adempiere database (pg_restore)"
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - "{{ pg_container }}"
+      - pg_restore
+      - -U
+      - "{{ pg_superuser }}"
+      - -d
+      - "{{ adempiere_db }}"
+      - -F
+      - c
+      - "{{ restore_container_backup_dir }}/{{ restore_dump_filename }}"
+  become: true
+  changed_when: true
+  when: restore_is_custom_format
 
 - name: "INFO: Post-restore SQL script"
   ansible.builtin.debug:
@@ -224,13 +260,14 @@
 
 - name: "INFO: Clean up working files"
   ansible.builtin.debug:
-    msg: "remove dump: {{ restore_remote_backup_dir }}/{{ restore_dump_filename }} | remove archive: {{ not keep_restore_file }}"
+    msg: "remove dump: {{ restore_dump_filename != restore_backup_filename }} | remove archive: {{ not keep_restore_file }}"
 
 - name: "APPLY: Remove decompressed dump file"
   ansible.builtin.file:
     path: "{{ restore_remote_backup_dir }}/{{ restore_dump_filename }}"
     state: absent
   become: true
+  when: restore_dump_filename != restore_backup_filename
 
 - name: "APPLY: Remove backup archive"
   ansible.builtin.file:

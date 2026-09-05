@@ -110,6 +110,23 @@ print_optional() {
     print_row "[OPT]" "$1" "${2:-(not set)}" "$3"
 }
 
+print_backend_list() {
+    local hosts_yml="$SCRIPT_DIR/inventories/hosts.yml"
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        local ip ip_regex comment
+        ip=$(echo "$line" | awk '{print $NF}')
+        ip_regex="${ip//./\\.}"
+        comment=$(grep -E "^[[:space:]]+ansible_host:[[:space:]]+${ip_regex}[[:space:]]*#" \
+                      "$hosts_yml" 2>/dev/null | sed 's/.*#[[:space:]]*//' | head -1 || true)
+        if [[ -n "$comment" ]]; then
+            printf "         %s  (%s)\n" "$line" "$comment"
+        else
+            printf "         %s\n" "$line"
+        fi
+    done <<< "$BACKEND_LIST"
+}
+
 # --- Common: vault and inventory ---
 
 PROJECT_NAME=$(read_var project_name)
@@ -206,9 +223,7 @@ except Exception:
 
     if [[ "$BACKEND_COUNT" -gt 0 ]]; then
         print_preflight true  "BackEnd inventory" "$BACKEND_COUNT host(s)" "inventories/hosts.yml" ""
-        while IFS= read -r line; do
-            [[ -n "$line" ]] && printf "         %s\n" "$line"
-        done <<< "$BACKEND_LIST"
+        print_backend_list
     else
         print_preflight false "BackEnd inventory" "NO HOSTS" "inventories/hosts.yml" \
             "no BackEnd hosts defined in inventory"
@@ -346,10 +361,16 @@ if [[ "$TARGET" == "restore-db" ]]; then
 
     # Detect format
     if [[ "$RESTORE_FILENAME" == *.tar.gz ]]; then
-        FORMAT="tar.gz"
+        FORMAT="tar.gz (SQL)  →  psql -f"
         DUMP_FILENAME="${RESTORE_FILENAME%.tar.gz}.sql"
+    elif [[ "$RESTORE_FILENAME" == *.backup.gz ]]; then
+        FORMAT="gz (pg_dump -Fc)  →  pg_restore -Fc"
+        DUMP_FILENAME="${RESTORE_FILENAME%.gz}"
+    elif [[ "$RESTORE_FILENAME" == *.backup ]]; then
+        FORMAT="pg_dump -Fc, uncompressed  →  pg_restore -Fc"
+        DUMP_FILENAME="$RESTORE_FILENAME"
     elif [[ -n "$RESTORE_FILENAME" ]]; then
-        FORMAT="gz"
+        FORMAT="gz (SQL)  →  psql -f"
         DUMP_FILENAME="${RESTORE_FILENAME%.gz}"
     else
         FORMAT="(unknown)"
@@ -373,9 +394,7 @@ if [[ "$TARGET" == "restore-db" ]]; then
 
     if [[ "$BACKEND_COUNT" -gt 0 ]]; then
         print_preflight true  "BackEnd inventory" "$BACKEND_COUNT host(s)" "inventories/hosts.yml" ""
-        while IFS= read -r line; do
-            [[ -n "$line" ]] && printf "         %s\n" "$line"
-        done <<< "$BACKEND_LIST"
+        print_backend_list
     else
         print_preflight false "BackEnd inventory" "NO HOSTS" "inventories/hosts.yml" \
             "no BackEnd hosts defined in inventory"
@@ -388,6 +407,50 @@ if [[ "$TARGET" == "restore-db" ]]; then
         _bk_path="${RESTORE_LOCAL_DIR:-(not set)}/${RESTORE_FILENAME:-(not set)}"
         print_preflight false "Backup file" "NOT FOUND" "$_bk_path" \
             "backup file not found: $_bk_path"
+    fi
+
+    # --- Backup format validation (extension + magic bytes) ---
+    if [[ -n "$RESTORE_FILENAME" && -n "$RESTORE_LOCAL_DIR" && -f "$RESTORE_LOCAL_DIR/$RESTORE_FILENAME" ]]; then
+        _bkfile="$RESTORE_LOCAL_DIR/$RESTORE_FILENAME"
+
+        # Extension check — must be one of the four supported formats
+        _ext_ok=true
+        if [[ "$RESTORE_FILENAME" != *.tar.gz && "$RESTORE_FILENAME" != *.backup.gz && \
+              "$RESTORE_FILENAME" != *.backup  && "$RESTORE_FILENAME" != *.sql.gz ]]; then
+            _ext_ok=false
+        fi
+        print_preflight "$_ext_ok" \
+            "Format (extension)" \
+            "$( [[ "$_ext_ok" == true ]] && echo "$FORMAT" || echo "UNSUPPORTED" )" \
+            "filename" \
+            "unsupported extension — expected .sql.gz, .tar.gz, .backup.gz, or .backup"
+
+        # Magic bytes check — only when extension is recognised
+        if [[ "$_ext_ok" == true ]]; then
+            if [[ "$RESTORE_FILENAME" == *.backup && "$RESTORE_FILENAME" != *.backup.gz ]]; then
+                # PostgreSQL custom-format files start with the 5-byte ASCII string "PGDMP"
+                _magic=$(head -c 5 "$_bkfile" 2>/dev/null || true)
+                if [[ "$_magic" == "PGDMP" ]]; then
+                    print_preflight true "Format (content)" "PGDMP header confirmed" "$RESTORE_FILENAME" ""
+                else
+                    print_preflight false "Format (content)" "PGDMP header MISSING" "$RESTORE_FILENAME" \
+                        "file does not start with PGDMP — not a valid pg_dump -Fc file (got: $_magic)"
+                fi
+            elif [[ "$RESTORE_FILENAME" == *.gz ]]; then
+                # All gzip files start with the 2-byte magic 0x1f 0x8b
+                _gz_ok=$(python3 -c "
+with open('$_bkfile', 'rb') as f:
+    b = f.read(2)
+print('ok' if b == b'\x1f\x8b' else 'bad')
+" 2>/dev/null || echo "bad")
+                if [[ "$_gz_ok" == "ok" ]]; then
+                    print_preflight true "Format (content)" "gzip header confirmed" "$RESTORE_FILENAME" ""
+                else
+                    print_preflight false "Format (content)" "gzip header MISSING" "$RESTORE_FILENAME" \
+                        "file does not have a valid gzip header — may be corrupt or have the wrong extension"
+                fi
+            fi
+        fi
     fi
 
     echo ""

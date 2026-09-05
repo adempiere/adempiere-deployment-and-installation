@@ -208,6 +208,22 @@ read_var() {
 read_backend_var() {
   grep -E "^$1:" "$BACKEND_YML" | head -1 | sed "s/^$1:[[:space:]]*//" | tr -d '"'"'"
 }
+annotate_backend_hosts() {
+    local hosts_yml="$SCRIPT_DIR/inventories/hosts.yml"
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        local ip ip_regex comment
+        ip=$(echo "$line" | awk '{print $NF}')
+        ip_regex="${ip//./\\.}"
+        comment=$(grep -E "^[[:space:]]+ansible_host:[[:space:]]+${ip_regex}[[:space:]]*#" \
+                      "$hosts_yml" 2>/dev/null | sed 's/.*#[[:space:]]*//' | head -1 || true)
+        if [[ -n "$comment" ]]; then
+            echo "$line  ($comment)"
+        else
+            echo "$line"
+        fi
+    done <<< "$1"
+}
 
 PROJECT_NAME=$(read_var project_name)
 ADEMPIERE_USERNAME=$(read_var adempiere_username)
@@ -262,6 +278,7 @@ try:
 except Exception:
     print('      (could not read inventory)')
 " 2>/dev/null || echo "      (could not read inventory)")
+BACKEND_LIST_DISPLAY=$(annotate_backend_hosts "$BACKEND_LIST")
 
 # --- Auto-detect server state by probing SSH ports ---
 #
@@ -301,7 +318,7 @@ fi
 echo "================================================================"
 echo ""
 echo "  Target BackEnd server(s):"
-echo "$BACKEND_LIST"
+echo "$BACKEND_LIST_DISPLAY"
 echo ""
 echo "  Server configuration  (group_vars/all/vars.yml + group_vars/BackEnd.yml):"
 printf "    %-30s %s\n" "Project name:"               "$PROJECT_NAME"
